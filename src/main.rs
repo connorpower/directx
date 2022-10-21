@@ -39,6 +39,23 @@ fn main() -> Result<()> {
         let atom = RegisterClassExA(&wnd_class);
         assert!(atom != 0, "RegisterClassExA failed");
 
+        let mut rect = RECT {
+            left: 0,
+            right: 800,
+            top: 0,
+            bottom: 600,
+        };
+        assert!(
+            AdjustWindowRectEx(
+                &mut rect,
+                WS_OVERLAPPEDWINDOW,
+                false,
+                WINDOW_EX_STYLE::default(),
+            )
+            .as_bool(),
+            "AdjustWindowRectEx failed"
+        );
+
         let hwnd = CreateWindowExA(
             WINDOW_EX_STYLE::default(),
             class_name,
@@ -46,8 +63,8 @@ fn main() -> Result<()> {
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            800, // TODO: calculate
-            600, // TODO: calculate
+            rect.right - rect.left,
+            rect.bottom - rect.top,
             HWND::default(),
             HMENU::default(),
             instance,
