@@ -79,7 +79,7 @@ fn main() -> Result<()> {
             if !GetMessageA(&mut msg, HWND::default(), 0, 0).as_bool() {
                 break;
             }
-            TranslateMessage(&mut msg);
+            TranslateMessage(&msg);
             DispatchMessageA(&msg);
         }
     }
