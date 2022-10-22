@@ -1,6 +1,6 @@
 //! Win32 Window methods & types
 
-use super::{errors::*, invoke::*};
+use super::{errors::*, invoke};
 use ::std::sync::Arc;
 use ::windows::{
     core::{s, PCSTR},
@@ -55,7 +55,7 @@ where
                 let create_struct = lparam.0 as *const CREATESTRUCTA;
                 let self_ = unsafe { (*create_struct).lpCreateParams } as *const Self;
 
-                win32_invoke_and_check_err(
+                invoke::check_err(
                     || unsafe { SetWindowLongPtrA(hwnd, GWLP_USERDATA, self_ as _) },
                     "SetWindowLongPtrA",
                 )
@@ -63,7 +63,7 @@ where
             }
             // Our window is being destroyed, so we must clean up our Arc'd data.
             WM_NCDESTROY => {
-                let self_ = win32_invoke_and_check_err(
+                let self_ = invoke::check_err(
                     || unsafe { SetWindowLongPtrA(hwnd, GWLP_USERDATA, 0) },
                     "SetWindowLongPtrA",
                 )
@@ -76,7 +76,7 @@ where
             // We are neither creating, nor destroying a window, so we must find
             // the `wnd_proc` method on our rust window and pass the message along.
             _ => {
-                match win32_invoke_isize(
+                match invoke::check_nonzero_isize(
                     || unsafe { GetWindowLongPtrA(hwnd, GWLP_USERDATA) },
                     "GetWindowLongPtr",
                 ) {
@@ -135,7 +135,7 @@ where
 
         // TODO: macro_rules to perform all the following, including
         // string-ifying the function name
-        let _atom = win32_invoke_u16(
+        let _atom = invoke::check_nonzero_u16(
             || unsafe { RegisterClassExA(&wnd_class) },
             "RegisterClassExA",
         )?;
@@ -147,7 +147,7 @@ where
             bottom: 600,
         };
 
-        win32_invoke_bool(
+        invoke::check_bool(
             || unsafe {
                 AdjustWindowRectEx(
                     &mut rect,
@@ -161,7 +161,7 @@ where
 
         let wnd = Arc::new(MainWindow { on_paint: p });
 
-        let hwnd = win32_invoke_hwnd(
+        let hwnd = invoke::check_hwnd(
             || unsafe {
                 CreateWindowExA(
                     WINDOW_EX_STYLE::default(),

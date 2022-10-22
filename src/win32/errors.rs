@@ -1,5 +1,8 @@
 use ::std::fmt::{self, Display};
-use ::windows::core::{Error as Win32Error, HRESULT};
+use ::windows::{
+    core::{Error as Win32Error, HRESULT},
+    Win32::Foundation::GetLastError,
+};
 
 pub type Result<T> = ::std::result::Result<T, Error>;
 
@@ -37,5 +40,13 @@ impl Display for Context {
             Win32Error(e) => write!(f, "{e}"),
             Hresult(hres) => write!(f, "{code}: {msg}", code = hres.0, msg = hres.message()),
         }
+    }
+}
+
+pub(crate) fn get_last_err(f_name: &'static str) -> Error {
+    let hresult = unsafe { GetLastError() }.to_hresult();
+    Error::Unexpected {
+        function: f_name,
+        context: hresult.into(),
     }
 }
