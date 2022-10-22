@@ -55,19 +55,12 @@ where
                 let create_struct = lparam.0 as *const CREATESTRUCTA;
                 let self_ = unsafe { (*create_struct).lpCreateParams } as *const Self;
 
-                invoke::check_err(
-                    || unsafe { SetWindowLongPtrA(hwnd, GWLP_USERDATA, self_ as _) },
-                    "SetWindowLongPtrA",
-                )
-                .unwrap();
+                invoke::chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_USERDATA, self_ as _)).unwrap();
             }
             // Our window is being destroyed, so we must clean up our Arc'd data.
             WM_NCDESTROY => {
-                let self_ = invoke::check_err(
-                    || unsafe { SetWindowLongPtrA(hwnd, GWLP_USERDATA, 0) },
-                    "SetWindowLongPtrA",
-                )
-                .unwrap() as *const Self;
+                let self_ = invoke::chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_USERDATA, 0))
+                    .unwrap() as *const Self;
 
                 // Consume and drop our Arc which was held inside the Win32
                 // window.
@@ -76,10 +69,7 @@ where
             // We are neither creating, nor destroying a window, so we must find
             // the `wnd_proc` method on our rust window and pass the message along.
             _ => {
-                match invoke::check_nonzero_isize(
-                    || unsafe { GetWindowLongPtrA(hwnd, GWLP_USERDATA) },
-                    "GetWindowLongPtr",
-                ) {
+                match invoke::chk!(nonzero_isize; GetWindowLongPtrA(hwnd, GWLP_USERDATA)) {
                     // We've received a window event but we haven't yet received
                     // the create window event and populated the user data with
                     // a pointer to our rust window. We cannot handle this message
@@ -135,10 +125,7 @@ where
 
         // TODO: macro_rules to perform all the following, including
         // string-ifying the function name
-        let _atom = invoke::check_nonzero_u16(
-            || unsafe { RegisterClassExA(&wnd_class) },
-            "RegisterClassExA",
-        )?;
+        let _atom = invoke::chk!(nonzero_u16; RegisterClassExA(&wnd_class))?;
 
         let mut rect = RECT {
             left: 0,
@@ -147,38 +134,29 @@ where
             bottom: 600,
         };
 
-        invoke::check_bool(
-            || unsafe {
-                AdjustWindowRectEx(
-                    &mut rect,
-                    WS_OVERLAPPEDWINDOW,
-                    false,
-                    WINDOW_EX_STYLE::default(),
-                )
-            },
-            "AdjustWindowRectEx",
-        )?;
+        invoke::chk!(bool; AdjustWindowRectEx(
+            &mut rect,
+            WS_OVERLAPPEDWINDOW,
+            false,
+            WINDOW_EX_STYLE::default()
+        ))?;
 
         let wnd = Arc::new(MainWindow { on_paint: p });
 
-        let hwnd = invoke::check_hwnd(
-            || unsafe {
-                CreateWindowExA(
-                    WINDOW_EX_STYLE::default(),
-                    Self::class_name(),
-                    s!("Hello, DirectX!"),
-                    WS_OVERLAPPEDWINDOW,
-                    CW_USEDEFAULT,
-                    CW_USEDEFAULT,
-                    rect.right - rect.left,
-                    rect.bottom - rect.top,
-                    None,
-                    None,
-                    module,
-                    Some(Arc::into_raw(wnd.clone()) as *const _),
-                )
-            },
-            "CreateWindowExA",
+        let hwnd = invoke::chk!(hwnd; CreateWindowExA(
+                WINDOW_EX_STYLE::default(),
+                Self::class_name(),
+                s!("Hello, DirectX!"),
+                WS_OVERLAPPEDWINDOW,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                None,
+                None,
+                module,
+                Some(Arc::into_raw(wnd.clone()) as *const _)
+            )
         )?;
 
         unsafe { ShowWindow(hwnd, SW_SHOWNORMAL) };

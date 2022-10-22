@@ -2,13 +2,40 @@
 
 use super::errors::*;
 
-use ::paste::paste;
 use ::std::num::{NonZeroIsize, NonZeroU16};
 use ::windows::Win32::Foundation::{GetLastError, SetLastError, BOOL, HWND, WIN32_ERROR};
 
+/// Invokes a Win32 function with the provided argument and checks the return
+/// value for success, or creates a crate error with context.
+///
+/// The supported values for check are:
+/// - nonzero_isize
+/// - nonzero_u16
+/// - last_err
+/// - hwnd
+/// - bool
+///
+/// ### Usage
+///
+/// ```
+/// invoke::chk!(nonzero_isize; GetWindowLongPtrA(hwnd, GWLP_USERDATA))?;
+/// ```
+macro_rules! chk {
+    ($check:expr ; $fn:ident ( $( $param:expr),* ) ) => {
+        ::paste::paste! {
+            $crate::win32::invoke:: [< check_ $check >] (
+                || unsafe { [<$fn>]( $( $param, )* ) } ,
+                ::std::stringify!([<$fn>])
+            )
+        }
+    }
+}
+
+pub(crate) use chk;
+
 macro_rules! impl_nonzero {
     ($num:ty => $nonzero:ty) => {
-        paste! {
+        ::paste::paste! {
             /// Invokes a Win32 API which defines success by non-zero return
             /// codes. Returns a guaranteed `NonZero` integer or otherwise maps
             /// the result of `F` to a crate error complete with system error
@@ -29,7 +56,7 @@ impl_nonzero!(isize => NonZeroIsize);
 /// Invokes a Win32 API which indicates failure by setting the last error code
 /// and not by return type or output params. The last error is cleared
 /// immediately before invoking the function.
-pub(crate) fn check_err<F, R>(f: F, f_name: &'static str) -> Result<R>
+pub(crate) fn check_last_err<F, R>(f: F, f_name: &'static str) -> Result<R>
 where
     F: FnOnce() -> R,
 {

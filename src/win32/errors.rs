@@ -8,7 +8,7 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 
 #[derive(::thiserror::Error, Debug)]
 pub enum Error {
-    #[error("unexpected win32 error in {function}: {context}")]
+    #[error("unexpected win32 error in {function}. {context}")]
     Unexpected {
         function: &'static str,
         context: Context,

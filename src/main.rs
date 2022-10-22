@@ -7,7 +7,16 @@ use ::directx::win32::{
     *,
 };
 
-fn main() -> Result<()> {
+pub fn main() {
+    match run() {
+        Ok(_) => (),
+        Err(e) => {
+            eprintln!("{e}");
+        }
+    }
+}
+
+fn run() -> Result<()> {
     let on_paint = || {
         println!("on paint");
     };
