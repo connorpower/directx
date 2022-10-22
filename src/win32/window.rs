@@ -76,7 +76,7 @@ where
             // We are neither creating, nor destroying a window, so we must find
             // the `wnd_proc` method on our rust window and pass the message along.
             _ => {
-                match win32_invoke_lptr(
+                match win32_invoke_isize(
                     || unsafe { GetWindowLongPtrA(hwnd, GWLP_USERDATA) },
                     "GetWindowLongPtr",
                 ) {

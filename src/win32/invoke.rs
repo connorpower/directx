@@ -1,10 +1,10 @@
 //! Utilities for invoking native Win32 API in a safe & ergonomic way.
 
-use ::windows::Win32::Foundation::{GetLastError, SetLastError, BOOL, HWND, WIN32_ERROR};
-
-use ::std::num::{NonZeroIsize, NonZeroU16};
-
 use super::errors::*;
+
+use ::paste::paste;
+use ::std::num::{NonZeroIsize, NonZeroU16};
+use ::windows::Win32::Foundation::{GetLastError, SetLastError, BOOL, HWND, WIN32_ERROR};
 
 pub(crate) fn last_err(f_name: &'static str) -> Error {
     let hresult = unsafe { GetLastError() }.to_hresult();
@@ -28,26 +28,25 @@ pub(crate) fn maybe_last_err(f_name: &'static str) -> Result<()> {
     }
 }
 
-// TODO: consider a trait "fallible" or similar which defualt impls on core
-// Windows types used to represent success.
-
-/// Invokes a Win32 API which defines success by non-zero return codes. Returns
-/// a guaranteed `NonZero` integer or otherwise maps the result of `F` to a
-/// crate error complete with system error message context.
-// TODO: macro_rules for all common integer types
-pub(crate) fn win32_invoke_u16<F>(f: F, f_name: &'static str) -> Result<NonZeroU16>
-where
-    F: FnOnce() -> u16,
-{
-    NonZeroU16::new(f()).ok_or_else(|| last_err(f_name))
+macro_rules! impl_nonzero {
+    ($num:ty => $nonzero:ty) => {
+        paste! {
+            /// Invokes a Win32 API which defines success by non-zero return
+            /// codes. Returns a guaranteed `NonZero` integer or otherwise maps
+            /// the result of `F` to a crate error complete with system error
+            /// message context.
+            pub(crate) fn [<win32_invoke_ $num>]<F>(f: F, f_name: &'static str) -> Result<$nonzero>
+            where
+                F: FnOnce() -> $num,
+            {
+                <$nonzero>::new(f()).ok_or_else(|| last_err(f_name))
+            }
+        }
+    };
 }
 
-pub(crate) fn win32_invoke_lptr<F>(f: F, f_name: &'static str) -> Result<NonZeroIsize>
-where
-    F: FnOnce() -> isize,
-{
-    NonZeroIsize::new(f()).ok_or_else(|| last_err(f_name))
-}
+impl_nonzero!(u16 => NonZeroU16);
+impl_nonzero!(isize => NonZeroIsize);
 
 /// Invokes a Win32 API which indicates failure by setting the last error code
 /// and not by return type or output params. The last error is cleared
