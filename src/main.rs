@@ -1,5 +1,5 @@
 use ::windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageA, GetMessageA, TranslateMessage, WaitMessage, MSG,
+    DispatchMessageA, GetMessageA, TranslateMessage, MSG,
 };
 
 use ::directx::win32::{
@@ -24,11 +24,8 @@ fn run() -> Result<()> {
     let _main_window = MainWindow::new(on_paint)?;
 
     // TODO: shift to a tokio loop
-    while unsafe { WaitMessage() }.as_bool() {
-        let mut msg = MSG::default();
-        if !unsafe { GetMessageA(&mut msg, None, 0, 0) }.as_bool() {
-            break;
-        }
+    let mut msg = MSG::default();
+    while unsafe { GetMessageA(&mut msg, None, 0, 0) }.as_bool() {
         unsafe { TranslateMessage(&msg) };
         unsafe { DispatchMessageA(&msg) };
     }
