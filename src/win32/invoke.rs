@@ -3,7 +3,11 @@
 use super::errors::*;
 
 use ::std::num::{NonZeroIsize, NonZeroU16};
-use ::windows::Win32::Foundation::{GetLastError, SetLastError, BOOL, HWND, WIN32_ERROR};
+
+use ::windows::{
+    core::Result as Win32Result,
+    Win32::Foundation::{GetLastError, SetLastError, BOOL, HWND, WIN32_ERROR},
+};
 
 /// Invokes a Win32 function with the provided argument and checks the return
 /// value for success, or creates a crate error with context.
@@ -83,17 +87,40 @@ where
     f().ok().map_err(|_| get_last_err(f_name))
 }
 
-/// Invokes a Win32 API which defines success by non-zero window handles. Maps
-/// the result of `F` to an error on failure.
-pub(crate) fn check_hwnd<F>(f: F, f_name: &'static str) -> Result<HWND>
-where
-    F: FnOnce() -> HWND,
-{
-    let hwnd = f();
+pub(crate) trait Win32Pointer {
+    fn is_invalid(&self) -> bool;
+}
 
-    if hwnd.0 == 0 {
+impl Win32Pointer for HWND {
+    fn is_invalid(&self) -> bool {
+        self.0 == 0
+    }
+}
+
+/// Invokes a Win32 API which defines success by Win32 results. Maps
+/// the result of `F` to an error on failure.
+pub(crate) fn check_res<F, V>(f: F, f_name: &'static str) -> Result<V>
+where
+    F: FnOnce() -> Win32Result<V>,
+{
+    f().map_err(|e| Error::Unexpected {
+        function: f_name,
+        context: e.into(),
+    })
+}
+
+/// Invokes a Win32 API which defines success by non-zero pointers. Maps
+/// the result of `F` to an error on failure.
+pub(crate) fn check_ptr<F, P>(f: F, f_name: &'static str) -> Result<P>
+where
+    F: FnOnce() -> P,
+    P: Win32Pointer,
+{
+    let ptr = f();
+
+    if ptr.is_invalid() {
         Err(get_last_err(f_name))
     } else {
-        Ok(hwnd)
+        Ok(ptr)
     }
 }

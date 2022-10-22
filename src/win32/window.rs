@@ -5,13 +5,14 @@ use ::std::sync::Arc;
 use ::windows::{
     core::{s, PCSTR},
     Win32::{
-        Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
+        Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM},
         System::LibraryLoader::GetModuleHandleA,
         UI::WindowsAndMessaging::{
-            AdjustWindowRectEx, CreateWindowExA, DefWindowProcA, GetWindowLongPtrA,
+            AdjustWindowRectEx, CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorA,
             PostQuitMessage, RegisterClassExA, SetWindowLongPtrA, ShowWindow, CREATESTRUCTA,
-            CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, SW_SHOWNORMAL, WINDOW_EX_STYLE,
-            WM_CLOSE, WM_NCCREATE, WM_NCDESTROY, WM_PAINT, WNDCLASSEXA, WS_OVERLAPPEDWINDOW,
+            CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, IDC_ARROW, SW_SHOWNORMAL,
+            WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY, WM_PAINT, WNDCLASSEXA,
+            WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -115,11 +116,18 @@ where
             context: e.into(),
         })?;
 
+        let cursor = invoke::chk!(res;
+            LoadCursorA(
+                HINSTANCE::default(),
+                PCSTR::from_raw(IDC_ARROW.as_ptr() as *const u8)
+            )
+        )?;
         let wnd_class = WNDCLASSEXA {
             cbSize: ::std::mem::size_of::<WNDCLASSEXA>() as u32,
             style: CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc: Some(Self::wnd_proc_fn),
             lpszClassName: Self::class_name(),
+            hCursor: cursor,
             ..Default::default()
         };
 
@@ -143,7 +151,7 @@ where
 
         let wnd = Arc::new(MainWindow { on_paint: p });
 
-        let hwnd = invoke::chk!(hwnd; CreateWindowExA(
+        let hwnd = invoke::chk!(ptr; CreateWindowExA(
                 WINDOW_EX_STYLE::default(),
                 Self::class_name(),
                 s!("Hello, DirectX!"),
