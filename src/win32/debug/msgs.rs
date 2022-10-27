@@ -9,7 +9,7 @@ use ::std::{
 };
 use ::windows::Win32::Foundation::{LPARAM, WPARAM};
 
-/// A simple wrapper which can be used pretty print debug descriptions of the
+/// A simple wrapper which can be used to pretty print debug descriptions of the
 /// Win32 WindowProc messages.
 #[derive(Clone, Copy, Debug)]
 pub struct DebugMsg {
@@ -20,7 +20,7 @@ pub struct DebugMsg {
 
 impl DebugMsg {
     /// Construct a new `DebugMsg`. Typically, the value is immediately printed
-    /// and discated.
+    /// and discarded.
     ///
     /// ### Usage
     ///
