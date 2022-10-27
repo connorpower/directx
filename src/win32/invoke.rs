@@ -24,6 +24,7 @@ use ::windows::{
 /// ```
 /// invoke::chk!(nonzero_isize; GetWindowLongPtrA(hwnd, GWLP_USERDATA))?;
 /// ```
+#[macro_export]
 macro_rules! chk {
     ($check:expr ; $fn:ident ( $( $param:expr),* ) ) => {
         ::paste::paste! {
@@ -35,7 +36,7 @@ macro_rules! chk {
     }
 }
 
-pub(crate) use chk;
+pub use chk;
 
 macro_rules! impl_nonzero {
     ($num:ty => $nonzero:ty) => {

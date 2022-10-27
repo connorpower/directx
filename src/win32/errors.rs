@@ -1,20 +1,31 @@
+//! Crate-specific error and result types, plus common conversions.
+
 use ::std::fmt::{self, Display};
 use ::windows::{
     core::{Error as Win32Error, HRESULT},
     Win32::Foundation::GetLastError,
 };
 
+/// Result type returned by functions that call into Win32 API.
 pub type Result<T> = ::std::result::Result<T, Error>;
 
+/// Error type for functions that call into Win32 API. The error attempts to
+/// pro-actively capture as much context as possible (error codes, system error
+/// message strings, etc).
 #[derive(::thiserror::Error, Debug)]
 pub enum Error {
     #[error("unexpected win32 error in {function}. {context}")]
     Unexpected {
+        /// The name of the function which failed. Typically provided to [chk].
         function: &'static str,
+        /// Inner context which can be formatted with `Display`
         context: Context,
     },
 }
 
+/// Inner error context. Implements `Display` to conveniently print any Win32
+/// error codes or system error messages which were gathered at the point of the
+/// error.
 #[derive(Debug)]
 pub enum Context {
     Win32Error(Win32Error),
@@ -43,6 +54,7 @@ impl Display for Context {
     }
 }
 
+/// Gets the last Win32 error (the Win32 equivalent of `errno`).
 pub(crate) fn get_last_err(f_name: &'static str) -> Error {
     let hresult = unsafe { GetLastError() }.to_hresult();
     Error::Unexpected {
