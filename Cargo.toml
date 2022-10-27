@@ -6,6 +6,8 @@ authors = ["Connor Power <connor@connorpower.com>"]
 
 [dependencies]
 thiserror = "1.0.37"
+lazy_static = "1.4.0"
+maplit = "1.0.2"
 paste = "1.0.9"
 
 [dependencies.windows]

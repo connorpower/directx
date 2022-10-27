@@ -1,6 +1,7 @@
 //! Win32 Window methods & types
 
-use super::{errors::*, invoke};
+use super::{errors::*, invoke, debug::msgs::DebugMsg};
+
 use ::std::sync::Arc;
 use ::windows::{
     core::{s, PCSTR},
@@ -48,6 +49,8 @@ where
         wparam: WPARAM,
         lparam: LPARAM,
     ) -> LRESULT {
+        println!("{}", DebugMsg::new(umsg, wparam, lparam));
+
         match umsg {
             // If we've received a create event, then we populate an `Arc`'ed
             // reference our rust window type in the user data section of the Win32
