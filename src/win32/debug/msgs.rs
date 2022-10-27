@@ -1,13 +1,13 @@
 //! Debug utilities for Win32 messages.
 
-use lazy_static::lazy_static;
-use maplit::hashmap;
-use std::{
+use ::lazy_static::lazy_static;
+use ::maplit::hashmap;
+use ::std::{
     borrow::Cow,
     collections::HashMap,
     fmt::{self, Display},
 };
-use windows::Win32::Foundation::{LPARAM, WPARAM};
+use ::windows::Win32::Foundation::{LPARAM, WPARAM};
 
 /// A simple wrapper which can be used pretty print debug descriptions of the
 /// Win32 WindowProc messages.
