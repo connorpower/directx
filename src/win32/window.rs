@@ -1,12 +1,15 @@
-//! Win32 Window methods & types
+//! Win32 Window methods & types.
 
-use super::{debug::msgs::DebugMsg, errors::*, invoke};
+use crate::{
+    geom::Dimension2D,
+    win32::{debug::msgs::DebugMsg, errors::*, invoke::chk},
+};
 
-use ::std::sync::Arc;
+use ::std::{ffi::CString, sync::Arc};
 use ::windows::{
     core::{s, PCSTR},
     Win32::{
-        Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM},
+        Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
         System::LibraryLoader::GetModuleHandleA,
         UI::WindowsAndMessaging::{
             AdjustWindowRectEx, CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorA,
@@ -18,14 +21,22 @@ use ::windows::{
     },
 };
 
-pub struct MainWindow<P>
+/// A rusty wrapper around Win32 window class.
+pub struct Window<P>
 where
     P: Fn(),
 {
+    dimension: Dimension2D<i32>,
     on_paint: P,
 }
 
-impl<P> MainWindow<P>
+// TODO: remove HWND param from handle_msg
+// TOOD: use separate setup/thunk window proc
+// TODO; unregister class
+// TODO: Arc'ed repo of window classes?
+// TOOD: test multiple instances of same window class
+// TODO: test multiple windows of different classes
+impl<P> Window<P>
 where
     P: Fn(),
 {
@@ -33,63 +44,66 @@ where
         s!("MainWindow")
     }
 
-    pub fn new(p: P) -> Result<Arc<Self>> {
-        let module = invoke::chk!(res; GetModuleHandleA(PCSTR::null()))?;
+    /// Construct and display a new window.
+    pub fn new(dimension: Dimension2D<i32>, name: &str, on_paint: P) -> Result<Arc<Self>> {
+        let this = Arc::new(Window {
+            dimension,
+            on_paint,
+        });
 
-        let cursor = invoke::chk!(res;
-            LoadCursorA(
-                HINSTANCE::default(),
-                PCSTR::from_raw(IDC_ARROW.as_ptr() as *const u8)
-            )
-        )?;
-        let wnd_class = WNDCLASSEXA {
-            cbSize: ::std::mem::size_of::<WNDCLASSEXA>() as u32,
-            style: CS_HREDRAW | CS_VREDRAW,
-            lpfnWndProc: Some(Self::wnd_proc_fn),
-            lpszClassName: Self::class_name(),
-            hCursor: cursor,
-            ..Default::default()
+        let wnd_class = {
+            let cursor = chk!(res;
+                LoadCursorA(
+                    HINSTANCE::default(),
+                    PCSTR::from_raw(IDC_ARROW.as_ptr() as *const u8)
+                )
+            )?;
+            WNDCLASSEXA {
+                cbSize: ::std::mem::size_of::<WNDCLASSEXA>() as u32,
+                style: CS_HREDRAW | CS_VREDRAW,
+                lpfnWndProc: Some(Self::wnd_proc_fn),
+                lpszClassName: Self::class_name(),
+                hCursor: cursor,
+                ..Default::default()
+            }
         };
 
-        // TODO: macro_rules to perform all the following, including
-        // string-ifying the function name
-        let _atom = invoke::chk!(nonzero_u16; RegisterClassExA(&wnd_class))?;
-
-        let mut rect = RECT {
-            left: 0,
-            right: 800,
-            top: 0,
-            bottom: 600,
-        };
-
-        invoke::chk!(bool; AdjustWindowRectEx(
-            &mut rect,
-            WS_OVERLAPPEDWINDOW,
-            false,
-            WINDOW_EX_STYLE::default()
-        ))?;
-
-        let wnd = Arc::new(MainWindow { on_paint: p });
-
-        let hwnd = invoke::chk!(ptr; CreateWindowExA(
-                WINDOW_EX_STYLE::default(),
-                Self::class_name(),
-                s!("Hello, DirectX!"),
+        let hwnd = {
+            let module = chk!(res; GetModuleHandleA(PCSTR::null()))?;
+            let _atom = chk!(nonzero_u16; RegisterClassExA(&wnd_class))?;
+            let mut rect = dimension.into();
+            chk!(bool; AdjustWindowRectEx(
+                &mut rect,
                 WS_OVERLAPPEDWINDOW,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
-                None,
-                None,
-                module,
-                Some(Arc::into_raw(wnd.clone()) as *const _)
-            )
-        )?;
+                false,
+                WINDOW_EX_STYLE::default()
+            ))?;
+            let name = CString::new(name).expect("Window name contained null byte");
+            chk!(ptr; CreateWindowExA(
+                    WINDOW_EX_STYLE::default(),
+                    Self::class_name(),
+                    PCSTR::from_raw(name.as_ptr() as *const u8),
+                    WS_OVERLAPPEDWINDOW,
+                    CW_USEDEFAULT,
+                    CW_USEDEFAULT,
+                    rect.right - rect.left,
+                    rect.bottom - rect.top,
+                    None,
+                    None,
+                    module,
+                    Some(Arc::into_raw(this.clone()) as *const _)
+                )
+            )?
+        };
 
         unsafe { ShowWindow(hwnd, SW_SHOWNORMAL) };
+        Ok(this)
+    }
 
-        Ok(wnd)
+    /// The dimensions of the client area of our Win32 window. The window chrome
+    /// is in addition to this dimension.
+    pub const fn dimension(&self) -> Dimension2D<i32> {
+        self.dimension
     }
 
     /// C-function Win32 window procedure which acts as shim and delegates to
@@ -110,12 +124,12 @@ where
                 let create_struct = lparam.0 as *const CREATESTRUCTA;
                 let self_ = unsafe { (*create_struct).lpCreateParams } as *const Self;
 
-                invoke::chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_USERDATA, self_ as _)).unwrap();
+                chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_USERDATA, self_ as _)).unwrap();
             }
             // Our window is being destroyed, so we must clean up our Arc'd data.
             WM_NCDESTROY => {
-                let self_ = invoke::chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_USERDATA, 0))
-                    .unwrap() as *const Self;
+                let self_ = chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_USERDATA, 0)).unwrap()
+                    as *const Self;
 
                 // Consume and drop our Arc which was held inside the Win32
                 // window.
@@ -124,7 +138,7 @@ where
             // We are neither creating, nor destroying a window, so we must find
             // the `wnd_proc` method on our rust window and pass the message along.
             _ => {
-                match invoke::chk!(nonzero_isize; GetWindowLongPtrA(hwnd, GWLP_USERDATA)) {
+                match chk!(nonzero_isize; GetWindowLongPtrA(hwnd, GWLP_USERDATA)) {
                     // We've received a window event but we haven't yet received
                     // the create window event and populated the user data with
                     // a pointer to our rust window. We cannot handle this message
@@ -160,7 +174,7 @@ where
     }
 }
 
-impl<P> Drop for MainWindow<P>
+impl<P> Drop for Window<P>
 where
     P: Fn(),
 {
