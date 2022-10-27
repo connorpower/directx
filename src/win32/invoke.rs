@@ -3,7 +3,6 @@
 use super::errors::*;
 
 use ::std::num::{NonZeroIsize, NonZeroU16};
-
 use ::windows::{
     core::Result as Win32Result,
     Win32::Foundation::{GetLastError, SetLastError, BOOL, HWND, WIN32_ERROR},
@@ -35,17 +34,19 @@ macro_rules! chk {
         }
     }
 }
-
 pub use chk;
 
 macro_rules! impl_nonzero {
     ($num:ty => $nonzero:ty) => {
         ::paste::paste! {
-            /// Invokes a Win32 API which defines success by non-zero return
-            /// codes. Returns a guaranteed `NonZero` integer or otherwise maps
-            /// the result of `F` to a crate error complete with system error
-            /// message context.
-            pub(crate) fn [<check_nonzero_ $num>]<F>(f: F, f_name: &'static str) -> Result<$nonzero>
+            #[doc = "Invokes a Win32 API which defines success by non-zero return"]
+            #[doc = "codes. Returns a guaranteed `NonZero` integer or otherwise maps"]
+            #[doc = "the result of `F` to a crate error complete with system error"]
+            #[doc = "message context."]
+            #[doc = ""]
+            #[doc = "Can be used with [crate::chk] by specifying `nonzero_" $num "`"]
+            #[doc = "as the type of check, e.g.: `chk!(nonzero_" $num "; ...)`"]
+            pub fn [<check_nonzero_ $num>]<F>(f: F, f_name: &'static str) -> Result<$nonzero>
             where
                 F: FnOnce() -> $num,
             {
@@ -61,7 +62,10 @@ impl_nonzero!(isize => NonZeroIsize);
 /// Invokes a Win32 API which indicates failure by setting the last error code
 /// and not by return type or output params. The last error is cleared
 /// immediately before invoking the function.
-pub(crate) fn check_last_err<F, R>(f: F, f_name: &'static str) -> Result<R>
+///
+/// Can be used with [crate::chk] by specifying `last_err` as the type of check,
+/// e.g.: `chk!(last_err; ...)`
+pub fn check_last_err<F, R>(f: F, f_name: &'static str) -> Result<R>
 where
     F: FnOnce() -> R,
 {
@@ -81,26 +85,22 @@ where
 
 /// Invokes a Win32 API which defines success by bool return values. Maps the
 /// result of `F` to an error on failure.
-pub(crate) fn check_bool<F>(f: F, f_name: &'static str) -> Result<()>
+///
+/// Can be used with [crate::chk] by specifying `bool` as the type of check,
+/// e.g.: `chk!(bool; ...)`
+pub fn check_bool<F>(f: F, f_name: &'static str) -> Result<()>
 where
     F: FnOnce() -> BOOL,
 {
     f().ok().map_err(|_| get_last_err(f_name))
 }
 
-pub(crate) trait Win32Pointer {
-    fn is_invalid(&self) -> bool;
-}
-
-impl Win32Pointer for HWND {
-    fn is_invalid(&self) -> bool {
-        self.0 == 0
-    }
-}
-
 /// Invokes a Win32 API which defines success by Win32 results. Maps
 /// the result of `F` to an error on failure.
-pub(crate) fn check_res<F, V>(f: F, f_name: &'static str) -> Result<V>
+///
+/// Can be used with [crate::chk] by specifying `res` as the type of check,
+/// e.g.: `chk!(res; ...)`
+pub fn check_res<F, V>(f: F, f_name: &'static str) -> Result<V>
 where
     F: FnOnce() -> Win32Result<V>,
 {
@@ -112,7 +112,10 @@ where
 
 /// Invokes a Win32 API which defines success by non-zero pointers. Maps
 /// the result of `F` to an error on failure.
-pub(crate) fn check_ptr<F, P>(f: F, f_name: &'static str) -> Result<P>
+///
+/// Can be used with [crate::chk] by specifying `ptr` as the type of check,
+/// e.g.: `chk!(ptr; ...)`
+pub fn check_ptr<F, P>(f: F, f_name: &'static str) -> Result<P>
 where
     F: FnOnce() -> P,
     P: Win32Pointer,
@@ -123,5 +126,15 @@ where
         Err(get_last_err(f_name))
     } else {
         Ok(ptr)
+    }
+}
+
+pub trait Win32Pointer {
+    fn is_invalid(&self) -> bool;
+}
+
+impl Win32Pointer for HWND {
+    fn is_invalid(&self) -> bool {
+        self.0 == 0
     }
 }

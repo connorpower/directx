@@ -16,7 +16,8 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 pub enum Error {
     #[error("unexpected win32 error in {function}. {context}")]
     Unexpected {
-        /// The name of the function which failed. Typically provided to [chk].
+        /// The name of the function which failed. Typically provided to
+        /// [crate::chk].
         function: &'static str,
         /// Inner context which can be formatted with `Display`
         context: Context,
