@@ -3,7 +3,7 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use ::directx::win32::{
-    window::{MainWindow, Window},
+    window::{MainWindow},
     *,
 };
 

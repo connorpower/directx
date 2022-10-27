@@ -18,14 +18,6 @@ use ::windows::{
     },
 };
 
-pub trait Window<P>
-where
-    Self: Sized,
-    P: Fn(),
-{
-    fn new(on_paint: P) -> Result<Arc<Self>>;
-}
-
 pub struct MainWindow<P>
 where
     P: Fn(),
@@ -39,6 +31,65 @@ where
 {
     const fn class_name() -> PCSTR {
         s!("MainWindow")
+    }
+
+    pub fn new(p: P) -> Result<Arc<Self>> {
+        let module = invoke::chk!(res; GetModuleHandleA(PCSTR::null()))?;
+
+        let cursor = invoke::chk!(res;
+            LoadCursorA(
+                HINSTANCE::default(),
+                PCSTR::from_raw(IDC_ARROW.as_ptr() as *const u8)
+            )
+        )?;
+        let wnd_class = WNDCLASSEXA {
+            cbSize: ::std::mem::size_of::<WNDCLASSEXA>() as u32,
+            style: CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc: Some(Self::wnd_proc_fn),
+            lpszClassName: Self::class_name(),
+            hCursor: cursor,
+            ..Default::default()
+        };
+
+        // TODO: macro_rules to perform all the following, including
+        // string-ifying the function name
+        let _atom = invoke::chk!(nonzero_u16; RegisterClassExA(&wnd_class))?;
+
+        let mut rect = RECT {
+            left: 0,
+            right: 800,
+            top: 0,
+            bottom: 600,
+        };
+
+        invoke::chk!(bool; AdjustWindowRectEx(
+            &mut rect,
+            WS_OVERLAPPEDWINDOW,
+            false,
+            WINDOW_EX_STYLE::default()
+        ))?;
+
+        let wnd = Arc::new(MainWindow { on_paint: p });
+
+        let hwnd = invoke::chk!(ptr; CreateWindowExA(
+                WINDOW_EX_STYLE::default(),
+                Self::class_name(),
+                s!("Hello, DirectX!"),
+                WS_OVERLAPPEDWINDOW,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                None,
+                None,
+                module,
+                Some(Arc::into_raw(wnd.clone()) as *const _)
+            )
+        )?;
+
+        unsafe { ShowWindow(hwnd, SW_SHOWNORMAL) };
+
+        Ok(wnd)
     }
 
     /// C-function Win32 window procedure which acts as shim and delegates to
@@ -106,70 +157,6 @@ where
             }
             _ => (),
         }
-    }
-}
-
-impl<P> Window<P> for MainWindow<P>
-where
-    P: Fn(),
-{
-    fn new(p: P) -> Result<Arc<Self>> {
-        let module = invoke::chk!(res; GetModuleHandleA(PCSTR::null()))?;
-
-        let cursor = invoke::chk!(res;
-            LoadCursorA(
-                HINSTANCE::default(),
-                PCSTR::from_raw(IDC_ARROW.as_ptr() as *const u8)
-            )
-        )?;
-        let wnd_class = WNDCLASSEXA {
-            cbSize: ::std::mem::size_of::<WNDCLASSEXA>() as u32,
-            style: CS_HREDRAW | CS_VREDRAW,
-            lpfnWndProc: Some(Self::wnd_proc_fn),
-            lpszClassName: Self::class_name(),
-            hCursor: cursor,
-            ..Default::default()
-        };
-
-        // TODO: macro_rules to perform all the following, including
-        // string-ifying the function name
-        let _atom = invoke::chk!(nonzero_u16; RegisterClassExA(&wnd_class))?;
-
-        let mut rect = RECT {
-            left: 0,
-            right: 800,
-            top: 0,
-            bottom: 600,
-        };
-
-        invoke::chk!(bool; AdjustWindowRectEx(
-            &mut rect,
-            WS_OVERLAPPEDWINDOW,
-            false,
-            WINDOW_EX_STYLE::default()
-        ))?;
-
-        let wnd = Arc::new(MainWindow { on_paint: p });
-
-        let hwnd = invoke::chk!(ptr; CreateWindowExA(
-                WINDOW_EX_STYLE::default(),
-                Self::class_name(),
-                s!("Hello, DirectX!"),
-                WS_OVERLAPPEDWINDOW,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
-                None,
-                None,
-                module,
-                Some(Arc::into_raw(wnd.clone()) as *const _)
-            )
-        )?;
-
-        unsafe { ShowWindow(hwnd, SW_SHOWNORMAL) };
-
-        Ok(wnd)
     }
 }
 
