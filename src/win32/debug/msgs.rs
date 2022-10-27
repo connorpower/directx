@@ -25,6 +25,9 @@ impl DebugMsg {
     /// ### Usage
     ///
     /// ```
+    /// use ::windows::Win32::Foundation::{LPARAM, WPARAM};
+    /// use ::directx::win32::debug::DebugMsg;
+    ///
     /// let umsg = 0x0047; // WM_WINDOWPOSCHANGED;
     /// let wparam = WPARAM(0x0000000000000000);
     /// let lparam = LPARAM(0x000000862299DF10);

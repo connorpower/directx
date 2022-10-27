@@ -17,11 +17,15 @@ use ::windows::{
 /// - last_err
 /// - hwnd
 /// - bool
+/// - res
 ///
 /// ### Usage
 ///
 /// ```
-/// invoke::chk!(nonzero_isize; GetWindowLongPtrA(hwnd, GWLP_USERDATA))?;
+/// use ::directx::win32::invoke;
+/// use ::windows::{core::PCSTR, Win32::System::LibraryLoader::GetModuleHandleA};
+///
+/// let _module = invoke::chk!(res; GetModuleHandleA(PCSTR::null())).unwrap();
 /// ```
 #[macro_export]
 macro_rules! chk {
