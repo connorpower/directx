@@ -114,10 +114,7 @@ where
     P: Fn(),
 {
     fn new(p: P) -> Result<Arc<Self>> {
-        let module = unsafe { GetModuleHandleA(PCSTR::null()) }.map_err(|e| Error::Unexpected {
-            function: "GetModuleHandleA",
-            context: e.into(),
-        })?;
+        let module = invoke::chk!(res; GetModuleHandleA(PCSTR::null()))?;
 
         let cursor = invoke::chk!(res;
             LoadCursorA(
