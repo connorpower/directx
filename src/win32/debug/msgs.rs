@@ -1120,3 +1120,17 @@ lazy_static! {
         0xCCCD => "WM_RASDIALEVENT",
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_msg_debug_formatting() {
+        let msg = DebugMsg::new(0x0020, WPARAM(0x2706A6), LPARAM(0x2000014));
+        assert_eq!(
+            &msg.to_string(),
+            "WM_SETCURSOR                  wparam: 0x00000000002706A6 lparam: 0x0000000002000014",
+        );
+    }
+}
