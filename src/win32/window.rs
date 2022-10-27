@@ -1,6 +1,6 @@
 //! Win32 Window methods & types
 
-use super::{errors::*, invoke, debug::msgs::DebugMsg};
+use super::{debug::msgs::DebugMsg, errors::*, invoke};
 
 use ::std::sync::Arc;
 use ::windows::{

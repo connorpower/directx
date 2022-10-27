@@ -1,9 +1,13 @@
 //! Debug utilities for Win32 messages.
 
-use ::windows::Win32::Foundation::{LPARAM, WPARAM};
-use ::std::{fmt::{self, Display}, collections::HashMap, borrow::Cow};
-use ::lazy_static::lazy_static;
-use ::maplit::hashmap;
+use lazy_static::lazy_static;
+use maplit::hashmap;
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    fmt::{self, Display},
+};
+use windows::Win32::Foundation::{LPARAM, WPARAM};
 
 /// A simple wrapper which can be used pretty print debug descriptions of the
 /// Win32 WindowProc messages.
@@ -28,12 +32,17 @@ impl DebugMsg {
     /// println!("{}", DebugMsg::new(umsg, wparam, lparam));
     /// ```
     pub fn new(msg: u32, wparam: WPARAM, lparam: LPARAM) -> Self {
-        Self { msg, wparam: wparam.0, lparam: lparam.0 }
+        Self {
+            msg,
+            wparam: wparam.0,
+            lparam: lparam.0,
+        }
     }
 
     /// Returns a string representation of the message name.
     pub fn name(&self) -> Cow<'static, str> {
-        MSG_NAMES.get(&self.msg)
+        MSG_NAMES
+            .get(&self.msg)
             .map(|s| Cow::Borrowed(*s))
             .unwrap_or_else(|| Cow::Owned(format!("UNKNOWN MSG ({msg:#0X})", msg = self.msg)))
     }
@@ -41,16 +50,21 @@ impl DebugMsg {
 
 impl Display for DebugMsg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{name:<name_width$} wparam: {wparam:#018X} lparam: {lparam:#018X}",
-            name = self.name(), name_width = *MAX_NAME,
-            wparam = self.wparam, lparam = self.lparam)
+        write!(
+            f,
+            "{name:<name_width$} wparam: {wparam:#018X} lparam: {lparam:#018X}",
+            name = self.name(),
+            name_width = *NAME_WIDTH,
+            wparam = self.wparam,
+            lparam = self.lparam
+        )
     }
 }
 
 lazy_static! {
     /// Max string length of any entry in the `MSG_NAMES` map. Convenient for
     /// width formatting.
-    static ref MAX_NAME: usize = {
+    static ref NAME_WIDTH: usize = {
         MSG_NAMES.values().map(|s| s.len()).max().expect("MSG_NAMES is not empty")
     };
 
