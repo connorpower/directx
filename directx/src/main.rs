@@ -1,9 +1,7 @@
-use ::directx::{
+use ::win32::{
     geom::Dimension2D,
-    win32::{
-        window::{Window, WindowState},
-        *,
-    },
+    window::{Window, WindowState},
+    *,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageA, GetMessageA, PostQuitMessage, TranslateMessage, MSG,

@@ -1,6 +1,6 @@
 //! Utilities for invoking native Win32 API in a safe & ergonomic way.
 
-use super::errors::*;
+use crate::errors::*;
 
 use ::std::num::{NonZeroIsize, NonZeroU16};
 use ::windows::{
@@ -22,7 +22,7 @@ use ::windows::{
 /// ### Usage
 ///
 /// ```
-/// use ::directx::win32::invoke;
+/// use ::win32::invoke;
 /// use ::windows::{core::PCSTR, Win32::System::LibraryLoader::GetModuleHandleA};
 ///
 /// let _module = invoke::chk!(res; GetModuleHandleA(PCSTR::null())).unwrap();
@@ -31,7 +31,7 @@ use ::windows::{
 macro_rules! chk {
     ($check:expr ; $fn:ident ( $( $param:expr),* ) ) => {
         ::paste::paste! {
-            $crate::win32::invoke:: [< check_ $check >] (
+            $crate::invoke:: [< check_ $check >] (
                 || unsafe { [<$fn>]( $( $param, )* ) } ,
                 ::std::stringify!([<$fn>])
             )

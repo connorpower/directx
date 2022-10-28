@@ -118,7 +118,7 @@
 //! ```
 use crate::{
     geom::Dimension2D,
-    win32::{errors::*, invoke::chk, window::inner::WindowClass},
+    errors::*, invoke::chk, window::inner::WindowClass,
 };
 
 use ::std::{

@@ -2,6 +2,7 @@
 
 pub mod debug;
 pub mod errors;
+pub mod geom;
 pub mod invoke;
 pub mod window;
 
