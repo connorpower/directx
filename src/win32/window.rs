@@ -243,7 +243,6 @@ where
     close_receiver: watch::Receiver<WindowState>,
 }
 
-// TODO: test multiple windows of different classes
 impl<P> WindowInner<P>
 where
     P: Fn(),
@@ -504,7 +503,6 @@ mod inner {
         fn unregister(&self) -> Result<()> {
             println!("Unregistering window class: {:?}", self.class_name());
             let module = chk!(res; GetModuleHandleA(PCSTR::null()))?;
-            // TODO: use atom instead of class name strings
             chk!(bool; UnregisterClassA(PCSTR::from_raw(self.class_name.as_ptr() as *const u8), module))?;
             Ok(())
         }
