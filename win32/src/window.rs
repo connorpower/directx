@@ -116,20 +116,16 @@
 //!                      │                                              │
 //!                      └──────────────────────────────────────────────┘
 //! ```
-use crate::{
-    geom::Dimension2D,
-    errors::*, invoke::chk, window::inner::WindowClass,
-};
+use crate::{errors::*, geom::Dimension2D, invoke::chk, window::inner::WindowClass};
 
 use ::std::{
+    cell::Cell,
     ffi::CString,
     rc::Rc,
-    cell::Cell,
-    sync::{
-        Arc, Weak as SyncWeak,
-    },
+    sync::{Arc, Weak as SyncWeak},
 };
 use ::tokio::sync::watch;
+use ::tracing::{error, debug, trace};
 use ::windows::{
     core::PCSTR,
     Win32::{
@@ -186,7 +182,7 @@ where
 {
     /// Construct and display a new window.
     pub fn new(dimension: Dimension2D<i32>, title: &str, on_paint: P) -> Result<Self> {
-        println!("Creating window: {title}");
+        debug!(wnd_title = %title, "Creating window");
         WindowInner::new(dimension, title, on_paint).map(|inner| Self { inner })
     }
 
@@ -214,9 +210,9 @@ where
     P: Fn(),
 {
     fn drop(&mut self) {
-        println!("Dropping window: {title}", title = &self.inner.title);
+        debug!(wnd_title = %&self.inner.title, "Dropping window");
         if let Err(e) = self.inner.destroy() {
-            eprintln!("Failed to destroy window: {}", e);
+            error!("Failed to destroy window: {}", e);
         }
     }
 }
@@ -249,7 +245,7 @@ where
 {
     /// Construct and display a new window.
     pub fn new(dimension: Dimension2D<i32>, title: &str, on_paint: P) -> Result<Rc<Self>> {
-        println!("Creating window inner: {title}");
+        debug!(wnd_title = %title, "Creating window inner");
 
         let (close_sender, close_receiver) = watch::channel(WindowState::Active);
         let this = Rc::new(Self {
@@ -328,7 +324,7 @@ where
     }
 
     fn handle_message(&self, umsg: u32, _wparam: WPARAM, _lparam: LPARAM) -> NextMessageAction {
-        //println!("{}", crate::win32::debug::msgs::DebugMsg::new(umsg, _wparam, _lparam));
+        trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, _wparam, _lparam));
 
         match umsg {
             WM_PAINT => {
@@ -340,7 +336,7 @@ where
                 return NextMessageAction::DontForward;
             }
             WM_NCDESTROY => {
-                println!("Destroying window inner: {title}", title = self.title);
+                debug!(wnd_title = %self.title, "Destroying window inner");
 
                 // Our window is being destroyed, so we must clean up our Rc'd
                 // handle on the Win32 side.
@@ -479,7 +475,7 @@ mod inner {
         }
 
         fn register(&self, wnd_proc_setup: WndProc) -> Result<()> {
-            println!("Registering window class: {:?}", self.class_name());
+            debug!(wnd_class = ?self.class_name(), "Registering window class");
             let cursor = chk!(res;
                 LoadCursorA(
                     HINSTANCE::default(),
@@ -501,7 +497,7 @@ mod inner {
         }
 
         fn unregister(&self) -> Result<()> {
-            println!("Unregistering window class: {:?}", self.class_name());
+            debug!(wnd_class = ?self.class_name(), "Unregistering window class");
             let module = chk!(res; GetModuleHandleA(PCSTR::null()))?;
             chk!(bool; UnregisterClassA(PCSTR::from_raw(self.class_name.as_ptr() as *const u8), module))?;
             Ok(())
@@ -511,7 +507,7 @@ mod inner {
     impl Drop for WindowClass {
         fn drop(&mut self) {
             if let Err(e) = self.unregister() {
-                eprintln!("{e}");
+                error!(error = %e);
             }
         }
     }

@@ -1,3 +1,4 @@
+use ::tracing::{debug, error, info};
 use ::win32::{
     geom::Dimension2D,
     window::{Window, WindowState},
@@ -7,16 +8,32 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageA, GetMessageA, PostQuitMessage, TranslateMessage, MSG,
 };
 
+mod trace;
+
 #[::tokio::main]
 pub async fn main() {
+    crate::trace::configure();
+
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        bin = env!("CARGO_BIN_NAME"),
+        "Starting"
+    );
+
     if let Err(e) = run().await {
-        eprintln!("{e}");
+        error!(error = %e);
     }
+
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        bin = env!("CARGO_BIN_NAME"),
+        "Terminating"
+    );
 }
 
 async fn run() -> Result<()> {
     let on_paint = || {
-        //        println!("on paint!");
+        // no-op
     };
 
     let mut main_window = {
@@ -55,7 +72,7 @@ async fn run() -> Result<()> {
             .map(|(_, rec)| *rec.borrow() == WindowState::CloseRequested)
             .unwrap_or(false)
         {
-            println!("main window requested to close");
+            debug!("main window requested to close");
             main_window.take();
             // Only closing the main window will result in app termination.
             unsafe {
@@ -68,7 +85,7 @@ async fn run() -> Result<()> {
             .map(|(_, rec)| *rec.borrow() == WindowState::CloseRequested)
             .unwrap_or(false)
         {
-            println!("secondary window requested to close");
+            debug!("secondary window requested to close");
             secondary_window.take();
         }
     }
