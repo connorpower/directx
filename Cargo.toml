@@ -1,5 +1,5 @@
 [workspace]
 members = [
     "win32",
-    "directx",
+    "app",
 ]
