@@ -3,7 +3,7 @@
 //! ## Interop Relationships
 //!
 //! This module exposes a top level [Window] which is little more than a wrapper
-//! around an Arc'ed [InnerWindow]. The [InnerWindow] is held onto by both the
+//! around an Arc'ed `InnerWindow`. The `InnerWindow` is held onto by both the
 //! [Window] on the rust side, and also by user data in the Win32 side. This
 //! ensures the inner is retained so long as any references exist to it.
 //! Destroying a window requires that both the Win32 side and our [Window]
