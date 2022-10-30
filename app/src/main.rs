@@ -1,3 +1,7 @@
+mod resources;
+mod trace;
+
+use crate::resources::FERRIS_ICON;
 use ::tracing::{debug, error, info};
 use ::win32::{
     geom::Dimension2D,
@@ -7,8 +11,6 @@ use ::win32::{
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageA, GetMessageA, PostQuitMessage, TranslateMessage, MSG,
 };
-
-mod trace;
 
 #[::tokio::main]
 pub async fn main() {
@@ -43,6 +45,7 @@ async fn run() -> Result<()> {
                 height: 600,
             },
             "Main Window",
+            Some(FERRIS_ICON.id()),
             on_paint,
         )?;
         let rec = wnd.close_receiver();
@@ -56,6 +59,7 @@ async fn run() -> Result<()> {
                 height: 300,
             },
             "Secondary Window",
+            None,
             on_paint,
         )?;
         let rec = wnd.close_receiver();

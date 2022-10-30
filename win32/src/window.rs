@@ -116,7 +116,7 @@
 //!                      │                                              │
 //!                      └──────────────────────────────────────────────┘
 //! ```
-use crate::{errors::*, geom::Dimension2D, invoke::chk, window::inner::WindowClass};
+use crate::{errors::*, geom::Dimension2D, invoke::chk, types::*, window::inner::WindowClass};
 
 use ::std::{
     cell::Cell,
@@ -125,7 +125,7 @@ use ::std::{
     sync::{Arc, Weak as SyncWeak},
 };
 use ::tokio::sync::watch;
-use ::tracing::{error, debug, trace};
+use ::tracing::{debug, error, trace};
 use ::windows::{
     core::PCSTR,
     Win32::{
@@ -133,10 +133,11 @@ use ::windows::{
         System::LibraryLoader::GetModuleHandleA,
         UI::WindowsAndMessaging::{
             AdjustWindowRectEx, CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA,
-            LoadCursorA, RegisterClassExA, SetWindowLongPtrA, ShowWindow, UnregisterClassA,
-            CREATESTRUCTA, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, GWLP_WNDPROC,
-            IDC_ARROW, SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY,
-            WM_PAINT, WNDCLASSEXA, WS_OVERLAPPEDWINDOW,
+            LoadCursorA, LoadImageA, RegisterClassExA, SetWindowLongPtrA, ShowWindow,
+            UnregisterClassA, CREATESTRUCTA, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA,
+            GWLP_WNDPROC, HICON, IDC_ARROW, IMAGE_ICON, LR_DEFAULTSIZE, SW_SHOWNORMAL,
+            WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY, WM_PAINT, WNDCLASSEXA,
+            WS_OVERLAPPEDWINDOW,
         },
     },
 };
@@ -181,9 +182,14 @@ where
     P: Fn(),
 {
     /// Construct and display a new window.
-    pub fn new(dimension: Dimension2D<i32>, title: &str, on_paint: P) -> Result<Self> {
+    pub fn new(
+        dimension: Dimension2D<i32>,
+        title: &str,
+        icon_id: Option<ResourceId>,
+        on_paint: P,
+    ) -> Result<Self> {
         debug!(wnd_title = %title, "Creating window");
-        WindowInner::new(dimension, title, on_paint).map(|inner| Self { inner })
+        WindowInner::new(dimension, title, icon_id, on_paint).map(|inner| Self { inner })
     }
 
     /// The dimensions of the client area of our Win32 window. The window chrome
@@ -244,13 +250,18 @@ where
     P: Fn(),
 {
     /// Construct and display a new window.
-    pub fn new(dimension: Dimension2D<i32>, title: &str, on_paint: P) -> Result<Rc<Self>> {
+    pub fn new(
+        dimension: Dimension2D<i32>,
+        title: &str,
+        icon_id: Option<ResourceId>,
+        on_paint: P,
+    ) -> Result<Rc<Self>> {
         debug!(wnd_title = %title, "Creating window inner");
 
         let (close_sender, close_receiver) = watch::channel(WindowState::Active);
         let this = Rc::new(Self {
             title: title.to_string(),
-            window_class: WindowClass::get_or_create("MainWindow", Self::wnd_proc_setup)?,
+            window_class: WindowClass::get_or_create("MainWindow", icon_id, Self::wnd_proc_setup)?,
             hwnd: Default::default(),
             dimension,
             on_paint,
@@ -434,19 +445,11 @@ mod inner {
     }
 
     impl WindowClass {
-        /// Private constructor.
-        fn new(class_name: &str, wnd_proc_setup: WndProc) -> Result<Arc<Self>> {
-            let class = Arc::new(Self {
-                class_name: CString::new(class_name).expect("Window ClassName contained null byte"),
-            });
-            class.register(wnd_proc_setup)?;
-            Ok(class)
-        }
-
         /// Gets a handle to an existing window class registration, or registers
         /// the window class for the first time.
         pub(super) fn get_or_create(
             class_name: &str,
+            icon_id: Option<ResourceId>,
             wnd_proc_setup: WndProc,
         ) -> Result<Arc<Self>> {
             let mut registry = WINDOW_REGISTRATIONS.lock();
@@ -454,7 +457,7 @@ mod inner {
 
             match registry.entry(key) {
                 Entry::Vacant(entry) => {
-                    let class = Self::new(class_name, wnd_proc_setup)?;
+                    let class = Self::register(class_name, icon_id, wnd_proc_setup)?;
                     entry.insert(Arc::downgrade(&class));
                     Ok(class)
                 }
@@ -462,7 +465,7 @@ mod inner {
                     if let Some(strong_ref) = entry.get().upgrade() {
                         Ok(strong_ref)
                     } else {
-                        let class = Self::new(class_name, wnd_proc_setup)?;
+                        let class = Self::register(class_name, icon_id, wnd_proc_setup)?;
                         entry.insert(Arc::downgrade(&class));
                         Ok(class)
                     }
@@ -474,26 +477,49 @@ mod inner {
             &self.class_name
         }
 
-        fn register(&self, wnd_proc_setup: WndProc) -> Result<()> {
-            debug!(wnd_class = ?self.class_name(), "Registering window class");
+        fn register(
+            class_name: &str,
+            icon_id: Option<ResourceId>,
+            wnd_proc_setup: WndProc,
+        ) -> Result<Arc<Self>> {
+            debug!(wnd_class = class_name, "Registering window class");
+
+            let module = chk!(res; GetModuleHandleA(PCSTR::null()))?;
             let cursor = chk!(res;
                 LoadCursorA(
                     HINSTANCE::default(),
                     PCSTR::from_raw(IDC_ARROW.as_ptr() as *const u8)
                 )
             )?;
+            let icon = icon_id
+                .map(|resource_id| {
+                    chk!(res;
+                        LoadImageA(
+                            module,
+                            PCSTR::from_raw(resource_id as _),
+                            IMAGE_ICON,
+                            0,
+                            0,
+                            LR_DEFAULTSIZE
+                        )
+                    )
+                })
+                .transpose()?;
 
             let wnd_class = WNDCLASSEXA {
                 cbSize: ::std::mem::size_of::<WNDCLASSEXA>() as u32,
                 style: CS_HREDRAW | CS_VREDRAW,
                 lpfnWndProc: Some(wnd_proc_setup),
-                lpszClassName: PCSTR::from_raw(self.class_name.as_ptr() as *const u8),
+                lpszClassName: PCSTR::from_raw(class_name.as_ptr() as *const u8),
                 hCursor: cursor,
+                hIcon: HICON(icon.map(|i| i.0).unwrap_or(0)),
                 ..Default::default()
             };
             let _atom = chk!(nonzero_u16; RegisterClassExA(&wnd_class))?;
 
-            Ok(())
+            Ok(Arc::new(Self {
+                class_name: CString::new(class_name).expect("Window ClassName contained null byte"),
+            }))
         }
 
         fn unregister(&self) -> Result<()> {

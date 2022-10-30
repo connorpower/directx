@@ -1,6 +1,6 @@
 //! Application level tracing configuration.
 
-use ::tracing_subscriber::{prelude::*, fmt, EnvFilter};
+use ::tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 /// Sets up application level tracing using an env logger configuration.
 ///
