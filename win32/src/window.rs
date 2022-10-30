@@ -120,25 +120,20 @@ use crate::{errors::*, geom::Dimension2D, invoke::chk, types::*, window::inner::
 
 use ::std::{
     cell::Cell,
-    ffi::CString,
     rc::Rc,
     sync::{Arc, Weak as SyncWeak},
 };
 use ::tokio::sync::watch;
 use ::tracing::{debug, error, trace};
-use ::windows::{
-    core::PCSTR,
-    Win32::{
-        Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
-        System::LibraryLoader::GetModuleHandleA,
-        UI::WindowsAndMessaging::{
-            AdjustWindowRectEx, CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA,
-            LoadCursorA, LoadImageA, RegisterClassExA, SetWindowLongPtrA, ShowWindow,
-            UnregisterClassA, CREATESTRUCTA, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA,
-            GWLP_WNDPROC, HICON, IDC_ARROW, IMAGE_ICON, LR_DEFAULTSIZE, SW_SHOWNORMAL,
-            WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY, WM_PAINT, WNDCLASSEXA,
-            WS_OVERLAPPEDWINDOW,
-        },
+use ::windows::Win32::{
+    Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
+    System::LibraryLoader::GetModuleHandleA,
+    UI::WindowsAndMessaging::{
+        AdjustWindowRectEx, CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA,
+        LoadCursorW, LoadImageA, RegisterClassExA, SetWindowLongPtrA, ShowWindow, UnregisterClassA,
+        CREATESTRUCTA, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, GWLP_WNDPROC, HICON,
+        IDC_ARROW, IMAGE_ICON, LR_DEFAULTSIZE, SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE,
+        WM_NCCREATE, WM_NCDESTROY, WM_PAINT, WNDCLASSEXA, WS_OVERLAPPEDWINDOW,
     },
 };
 
@@ -270,7 +265,7 @@ where
         });
 
         let hwnd = {
-            let module = chk!(res; GetModuleHandleA(PCSTR::null()))?;
+            let module = chk!(res; GetModuleHandleA(None))?;
             let mut rect = dimension.into();
             chk!(bool; AdjustWindowRectEx(
                 &mut rect,
@@ -278,11 +273,12 @@ where
                 false,
                 WINDOW_EX_STYLE::default()
             ))?;
-            let name = CString::new(title).expect("Window name contained null byte");
+            let title = WinString::new(title).expect("Window name contained null byte");
+
             chk!(ptr; CreateWindowExA(
                     WINDOW_EX_STYLE::default(),
-                    PCSTR::from_raw(this.window_class.class_name().as_ptr() as *const u8),
-                    PCSTR::from_raw(name.as_ptr() as *const u8),
+                    this.window_class.class_name(),
+                    &title,
                     WS_OVERLAPPEDWINDOW,
                     CW_USEDEFAULT,
                     CW_USEDEFAULT,
@@ -430,10 +426,7 @@ mod inner {
 
     use ::lazy_static::lazy_static;
     use ::parking_lot::Mutex;
-    use ::std::{
-        collections::{hash_map::Entry, HashMap},
-        ffi::CStr,
-    };
+    use ::std::collections::{hash_map::Entry, HashMap};
 
     lazy_static! {
         static ref WINDOW_REGISTRATIONS: Mutex<HashMap<String, SyncWeak<WindowClass>>> =
@@ -441,7 +434,7 @@ mod inner {
     }
 
     pub(super) struct WindowClass {
-        class_name: CString,
+        class_name: WinString,
     }
 
     impl WindowClass {
@@ -473,7 +466,7 @@ mod inner {
             }
         }
 
-        pub(super) fn class_name(&self) -> &CStr {
+        pub(super) fn class_name(&self) -> &WinString {
             &self.class_name
         }
 
@@ -484,11 +477,14 @@ mod inner {
         ) -> Result<Arc<Self>> {
             debug!(wnd_class = class_name, "Registering window class");
 
-            let module = chk!(res; GetModuleHandleA(PCSTR::null()))?;
+            let class_name =
+                WinString::new(class_name).expect("Window ClassName contained null byte");
+
+            let module = chk!(res; GetModuleHandleA(None))?;
             let cursor = chk!(res;
-                LoadCursorA(
+                LoadCursorW(
                     HINSTANCE::default(),
-                    PCSTR::from_raw(IDC_ARROW.as_ptr() as *const u8)
+                    IDC_ARROW
                 )
             )?;
             let icon = icon_id
@@ -496,7 +492,7 @@ mod inner {
                     chk!(res;
                         LoadImageA(
                             module,
-                            PCSTR::from_raw(resource_id as _),
+                            &WinString::from_resource_id(resource_id),
                             IMAGE_ICON,
                             0,
                             0,
@@ -510,22 +506,20 @@ mod inner {
                 cbSize: ::std::mem::size_of::<WNDCLASSEXA>() as u32,
                 style: CS_HREDRAW | CS_VREDRAW,
                 lpfnWndProc: Some(wnd_proc_setup),
-                lpszClassName: PCSTR::from_raw(class_name.as_ptr() as *const u8),
+                lpszClassName: (&class_name).into(),
                 hCursor: cursor,
                 hIcon: HICON(icon.map(|i| i.0).unwrap_or(0)),
                 ..Default::default()
             };
             let _atom = chk!(nonzero_u16; RegisterClassExA(&wnd_class))?;
 
-            Ok(Arc::new(Self {
-                class_name: CString::new(class_name).expect("Window ClassName contained null byte"),
-            }))
+            Ok(Arc::new(Self { class_name }))
         }
 
         fn unregister(&self) -> Result<()> {
-            debug!(wnd_class = ?self.class_name(), "Unregistering window class");
-            let module = chk!(res; GetModuleHandleA(PCSTR::null()))?;
-            chk!(bool; UnregisterClassA(PCSTR::from_raw(self.class_name.as_ptr() as *const u8), module))?;
+            debug!(wnd_class = %self.class_name(), "Unregistering window class");
+            let module = chk!(res; GetModuleHandleA(None))?;
+            chk!(bool; UnregisterClassA(self.class_name(), module))?;
             Ok(())
         }
     }

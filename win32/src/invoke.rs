@@ -23,9 +23,9 @@ use ::windows::{
 ///
 /// ```
 /// use ::win32::invoke;
-/// use ::windows::{core::PCSTR, Win32::System::LibraryLoader::GetModuleHandleA};
+/// use ::windows::Win32::System::LibraryLoader::GetModuleHandleA;
 ///
-/// let _module = invoke::chk!(res; GetModuleHandleA(PCSTR::null())).unwrap();
+/// let _module = invoke::chk!(res; GetModuleHandleA(None)).unwrap();
 /// ```
 #[macro_export]
 macro_rules! chk {
