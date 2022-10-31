@@ -1,4 +1,10 @@
-#![windows_subsystem = "windows"]
+// The feature flag `stdio` can be used to conditionally disable the windows
+// subsystem which allows program output to be sent to the console which
+// launched the app. Useful mostly for debugging.
+#![cfg_attr(
+    not(feature = "stdio"),
+    windows_subsystem = "windows")
+]
 
 mod resources;
 mod trace;

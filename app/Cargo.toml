@@ -5,6 +5,13 @@ edition = "2021"
 authors = ["Connor Power <connor@connorpower.com>"]
 build = "build.rs"
 
+[features]
+# Enables a stdio output (useful for debugging with traces from a terminal).
+# Acheives this by _not_ setting the windows subsystem to windows, which will
+# cause a cmd window to appear if the app is opened double-clicking and it was
+# built with this feature enabled.
+stdio= []
+
 [dependencies]
 win32 = { path = "../win32" }
 
