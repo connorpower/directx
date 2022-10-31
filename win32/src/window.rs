@@ -133,7 +133,7 @@ use ::windows::Win32::{
         LoadCursorW, LoadImageA, RegisterClassExA, SetWindowLongPtrA, ShowWindow, UnregisterClassA,
         CREATESTRUCTA, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, GWLP_USERDATA, GWLP_WNDPROC, HICON,
         IDC_ARROW, IMAGE_ICON, LR_DEFAULTSIZE, SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE,
-        WM_NCCREATE, WM_NCDESTROY, WM_PAINT, WNDCLASSEXA, WS_OVERLAPPEDWINDOW,
+        WM_NCCREATE, WM_NCDESTROY, WNDCLASSEXA, WS_OVERLAPPEDWINDOW,
     },
 };
 
@@ -163,28 +163,21 @@ enum NextMessageAction {
 ///
 /// A [Window] is `!Sync + !Send` as Win32 windows must be controlled by the
 /// same thread on which they were created.
-pub struct Window<P>
-where
-    P: Fn(),
-{
+pub struct Window {
     /// The inner refcounted window object. A clone of this object is held on
     /// the win32 API side and should be released when the window is destroyed.
-    inner: Rc<WindowInner<P>>,
+    inner: Rc<WindowInner>,
 }
 
-impl<P> Window<P>
-where
-    P: Fn(),
-{
+impl Window {
     /// Construct and display a new window.
     pub fn new(
         dimension: Dimension2D<i32>,
         title: &str,
         icon_id: Option<ResourceId>,
-        on_paint: P,
     ) -> Result<Self> {
         debug!(wnd_title = %title, "Creating window");
-        WindowInner::new(dimension, title, icon_id, on_paint).map(|inner| Self { inner })
+        WindowInner::new(dimension, title, icon_id).map(|inner| Self { inner })
     }
 
     /// The dimensions of the client area of our Win32 window. The window chrome
@@ -206,10 +199,7 @@ where
     }
 }
 
-impl<P> Drop for Window<P>
-where
-    P: Fn(),
-{
+impl Drop for Window {
     fn drop(&mut self) {
         debug!(wnd_title = %&self.inner.title, "Dropping window");
         if let Err(e) = self.inner.destroy() {
@@ -218,10 +208,7 @@ where
     }
 }
 
-struct WindowInner<P>
-where
-    P: Fn(),
-{
+struct WindowInner {
     /// A reference-counted handle to the Win32 window class registered for
     /// windows of this type. When the last `Window` instance is released, the
     /// corresponding Win32 window class will be de-registered.
@@ -233,23 +220,17 @@ where
     dimension: Dimension2D<i32>,
     /// The Window's title, as it appears in the Windows title bar.
     title: String,
-    /// A closure invoked when the system requests the window be painted.
-    on_paint: P,
 
     close_sender: watch::Sender<WindowState>,
     close_receiver: watch::Receiver<WindowState>,
 }
 
-impl<P> WindowInner<P>
-where
-    P: Fn(),
-{
+impl WindowInner {
     /// Construct and display a new window.
     pub fn new(
         dimension: Dimension2D<i32>,
         title: &str,
         icon_id: Option<ResourceId>,
-        on_paint: P,
     ) -> Result<Rc<Self>> {
         debug!(wnd_title = %title, "Creating window inner");
 
@@ -259,7 +240,6 @@ where
             window_class: WindowClass::get_or_create("MainWindow", icon_id, Self::wnd_proc_setup)?,
             hwnd: Default::default(),
             dimension,
-            on_paint,
             close_sender,
             close_receiver,
         });
@@ -334,9 +314,6 @@ where
         trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, _wparam, _lparam));
 
         match umsg {
-            WM_PAINT => {
-                (self.on_paint)();
-            }
             WM_CLOSE => {
                 self.close_sender.send_replace(WindowState::CloseRequested);
 

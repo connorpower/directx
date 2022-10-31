@@ -1,6 +1,6 @@
 use crate::resources::FERRIS_ICON;
 
-use ::tracing::{debug};
+use ::tracing::debug;
 use ::win32::{
     geom::Dimension2D,
     window::{Window, WindowState},
@@ -18,10 +18,6 @@ impl Game {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let on_paint = || {
-            // no-op
-        };
-
         let mut main_window = {
             let wnd = Window::new(
                 Dimension2D {
@@ -30,7 +26,6 @@ impl Game {
                 },
                 "Main Window",
                 Some(FERRIS_ICON.id()),
-                on_paint,
             )?;
             let rec = wnd.close_receiver();
             Some((wnd, rec))
