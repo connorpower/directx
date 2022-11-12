@@ -152,11 +152,11 @@ pub enum WindowState {
 
 /// The next step to take when handling a window proc message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NextMessageAction {
+enum Forwarding {
     /// The message should be forwarded to the system's default implementation.
     ForwardToSystem,
     /// The message has been completely handled. Do not forward the message.
-    DontForward,
+    None,
 }
 
 /// A rusty wrapper around Win32 window class.
@@ -310,14 +310,16 @@ impl WindowInner {
         Ok(())
     }
 
-    fn handle_message(&self, umsg: u32, _wparam: WPARAM, _lparam: LPARAM) -> NextMessageAction {
+    // TODO: forward to the window. This shouldn't be implemented only on the
+    // inner type.
+    fn handle_message(&self, umsg: u32, _wparam: WPARAM, _lparam: LPARAM) -> Forwarding {
         trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, _wparam, _lparam));
 
         match umsg {
             WM_CLOSE => {
                 self.close_sender.send_replace(WindowState::CloseRequested);
 
-                return NextMessageAction::DontForward;
+                return Forwarding::None;
             }
             WM_NCDESTROY => {
                 debug!(wnd_title = %self.title, "Destroying window inner");
@@ -334,7 +336,7 @@ impl WindowInner {
             _ => (),
         }
 
-        NextMessageAction::ForwardToSystem
+        Forwarding::ForwardToSystem
     }
 
     /// C-function Win32 window procedure performs one-time setup of the
@@ -384,9 +386,7 @@ impl WindowInner {
             unsafe {
                 // Add extra retain for the duration of following call
                 Rc::increment_strong_count(self_);
-                if Rc::from_raw(self_).handle_message(umsg, wparam, lparam)
-                    == NextMessageAction::DontForward
-                {
+                if Rc::from_raw(self_).handle_message(umsg, wparam, lparam) == Forwarding::None {
                     return LRESULT(0);
                 }
             }
