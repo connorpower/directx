@@ -127,11 +127,7 @@ use crate::{errors::*, geom::Dimension2D, types::*, window::WindowInner};
 
 use ::std::rc::Rc;
 use ::tracing::{debug, error};
-use ::windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
-
-/// Typedef for the Win32 windows procedure function - the primary entry piont
-/// for the Windows message pump.
-type WndProc = extern "system" fn(HWND, u32, WPARAM, LPARAM) -> LRESULT;
+use ::windows::Win32::Foundation::HWND;
 
 /// A rusty wrapper around Win32 window class.
 ///

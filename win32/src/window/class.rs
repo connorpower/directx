@@ -1,12 +1,12 @@
 //! Win32 windows classs wrapper. Helps define classes e.g. "categories" of
 //! windows.
 
-use crate::{errors::*, invoke::chk, types::*, window::WndProc};
+use crate::{errors::*, invoke::chk, types::*};
 
 use ::std::sync::{Arc, Weak as SyncWeak};
 use ::tracing::{debug, error};
 use ::windows::Win32::{
-    Foundation::HINSTANCE,
+    Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
     System::LibraryLoader::GetModuleHandleA,
     UI::WindowsAndMessaging::{
         LoadCursorW, LoadImageA, RegisterClassExA, UnregisterClassA, CS_HREDRAW, CS_VREDRAW, HICON,
@@ -17,6 +17,10 @@ use ::windows::Win32::{
 use ::lazy_static::lazy_static;
 use ::parking_lot::Mutex;
 use ::std::collections::{hash_map::Entry, HashMap};
+
+/// Typedef for the Win32 windows procedure function - the primary entry piont
+/// for the Windows message pump.
+type WndProc = extern "system" fn(HWND, u32, WPARAM, LPARAM) -> LRESULT;
 
 lazy_static! {
     static ref WINDOW_REGISTRATIONS: Mutex<HashMap<String, SyncWeak<WindowClass>>> =
