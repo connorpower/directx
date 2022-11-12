@@ -30,7 +30,7 @@ impl Game {
 
             if main_window
                 .as_mut()
-                .map(Window::requested_close)
+                .map(Window::clear_close_request)
                 .unwrap_or(false)
             {
                 debug!("main window requested to close");

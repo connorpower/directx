@@ -168,11 +168,11 @@ impl Window {
         self.inner.hwnd()
     }
 
-    /// Indicates whether a window is requesting to close (usually due to a
-    /// user clicking the close button). The window is not immediately closed
-    /// and remains usable until it is explicitly dropped.
-    pub fn requested_close(&mut self) -> bool {
-        self.inner.requested_close()
+    /// Returns whether the window has requested to close, and immediately
+    /// clears this request. Window is not actually closed until it is
+    /// dropped, so the close request can be ignored if needed.
+    pub fn clear_close_request(&mut self) -> bool {
+        self.inner.clear_close_request()
     }
 
     // TODO: should allow registration of an handle_message callback with strong

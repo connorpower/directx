@@ -1,11 +1,13 @@
 use crate::{errors::*, geom::Dimension2D, invoke::chk, types::*, window::WindowClass};
 
 use ::std::{
-    cell::{Cell, RefCell},
+    cell::Cell,
     rc::Rc,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
-use ::tokio::sync::watch;
 use ::tracing::{debug, trace};
 use ::windows::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
@@ -38,9 +40,10 @@ pub(super) struct WindowInner {
     dimension: Dimension2D<i32>,
     /// The Window's title, as it appears in the Windows title bar.
     title: String,
-
-    close_sender: watch::Sender<()>,
-    close_receiver: RefCell<watch::Receiver<()>>,
+    /// Stores an outstanding close request from the Win32 side. This must
+    /// either be actioned by dropping the top level window, or the close
+    /// request can be cleared if it is to be ignored.
+    close_request: AtomicBool,
 }
 
 impl WindowInner {
@@ -52,14 +55,12 @@ impl WindowInner {
     ) -> Result<Rc<Self>> {
         debug!(wnd_title = %title, "Creating window inner");
 
-        let (close_sender, close_receiver) = watch::channel(());
         let this = Rc::new(Self {
             title: title.to_string(),
             window_class: WindowClass::get_or_create("MainWindow", icon_id, Self::wnd_proc_setup)?,
             hwnd: Default::default(),
             dimension,
-            close_sender,
-            close_receiver: RefCell::new(close_receiver),
+            close_request: AtomicBool::new(false),
         });
 
         let hwnd = {
@@ -119,17 +120,8 @@ impl WindowInner {
     /// Returns whether the window has requested to close, and immediately
     /// clears this request. Window is not actually closed until it is
     /// dropped, so the close request can be ignored if needed.
-    ///
-    /// Safety: this can only be called by the `Window` class.
-    pub(super) fn requested_close(&self) -> bool {
-        let mut rec = self.close_receiver.borrow_mut();
-
-        if rec.has_changed().unwrap_or(true) {
-            let _ = rec.borrow_and_update();
-            true
-        } else {
-            false
-        }
+    pub(super) fn clear_close_request(&self) -> bool {
+        self.close_request.swap(false, Ordering::SeqCst)
     }
 
     pub(super) fn destroy(&self) -> Result<()> {
@@ -146,7 +138,7 @@ impl WindowInner {
 
         match umsg {
             WM_CLOSE => {
-                self.close_sender.send_replace(());
+                self.close_request.store(true, Ordering::SeqCst);
                 return Forwarding::None;
             }
             WM_NCDESTROY => {
