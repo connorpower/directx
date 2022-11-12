@@ -145,8 +145,6 @@ pub struct Window {
 
 impl Window {
     /// Construct and display a new window.
-    // TODO: parameterize with a class rather than individual components, (e.g.
-    // icon_id)...
     pub fn new(
         dimension: Dimension2D<i32>,
         title: &str,

@@ -31,16 +31,20 @@ impl WindowClass {
     /// Gets a handle to an existing window class registration, or registers
     /// the window class for the first time.
     pub(super) fn get_or_create(
-        class_name: &str,
+        class_name_prefix: &str,
         icon_id: Option<ResourceId>,
         wnd_proc_setup: WndProc,
     ) -> Result<Arc<Self>> {
         let mut registry = WINDOW_REGISTRATIONS.lock();
-        let key = class_name.to_string();
+        let class_name = format!(
+            "{prefix}-{icon}",
+            prefix = class_name_prefix,
+            icon = icon_id.unwrap_or_default()
+        );
 
-        match registry.entry(key) {
+        match registry.entry(class_name) {
             Entry::Vacant(entry) => {
-                let class = Self::register(class_name, icon_id, wnd_proc_setup)?;
+                let class = Self::register(entry.key().clone(), icon_id, wnd_proc_setup)?;
                 entry.insert(Arc::downgrade(&class));
                 Ok(class)
             }
@@ -48,7 +52,7 @@ impl WindowClass {
                 if let Some(strong_ref) = entry.get().upgrade() {
                     Ok(strong_ref)
                 } else {
-                    let class = Self::register(class_name, icon_id, wnd_proc_setup)?;
+                    let class = Self::register(entry.key().clone(), icon_id, wnd_proc_setup)?;
                     entry.insert(Arc::downgrade(&class));
                     Ok(class)
                 }
@@ -61,12 +65,11 @@ impl WindowClass {
     }
 
     fn register(
-        class_name: &str,
+        class_name: String,
         icon_id: Option<ResourceId>,
         wnd_proc_setup: WndProc,
     ) -> Result<Arc<Self>> {
         debug!(wnd_class = class_name, "Registering window class");
-
         let class_name = WinString::new(class_name).expect("Window ClassName contained null byte");
 
         let module = chk!(res; GetModuleHandleA(None))?;
