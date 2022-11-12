@@ -1,17 +1,14 @@
 // The feature flag `stdio` can be used to conditionally disable the windows
 // subsystem which allows program output to be sent to the console which
 // launched the app. Useful mostly for debugging.
-#![cfg_attr(
-    not(feature = "stdio"),
-    windows_subsystem = "windows")
-]
+#![cfg_attr(not(feature = "stdio"), windows_subsystem = "windows")]
 
+mod game;
 mod resources;
 mod trace;
-mod game;
 
-use ::tracing::{error, info};
 use crate::game::Game;
+use ::tracing::{error, info};
 
 #[::tokio::main]
 pub async fn main() {
@@ -33,4 +30,3 @@ pub async fn main() {
         "Terminating"
     );
 }
-
