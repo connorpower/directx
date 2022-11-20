@@ -9,13 +9,18 @@ use ::std::{
     },
 };
 use ::tracing::{debug, trace};
-use ::windows::Win32::{
-    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
-    System::LibraryLoader::GetModuleHandleA,
-    UI::WindowsAndMessaging::{
-        AdjustWindowRectEx, CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA,
-        SetWindowLongPtrA, ShowWindow, CREATESTRUCTA, CW_USEDEFAULT, GWLP_USERDATA, GWLP_WNDPROC,
-        SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY, WS_OVERLAPPEDWINDOW,
+use ::widestring::U16CString;
+use ::windows::{
+    core::PCWSTR,
+    Win32::{
+        Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+        System::LibraryLoader::GetModuleHandleW,
+        UI::WindowsAndMessaging::{
+            AdjustWindowRectEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW,
+            SetWindowLongPtrW, ShowWindow, CREATESTRUCTW, CW_USEDEFAULT, GWLP_USERDATA,
+            GWLP_WNDPROC, SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY,
+            WS_OVERLAPPEDWINDOW,
+        },
     },
 };
 
@@ -64,7 +69,7 @@ impl WindowInner {
         });
 
         let hwnd = {
-            let module = chk!(res; GetModuleHandleA(None))?;
+            let module = chk!(res; GetModuleHandleW(None))?;
             let mut rect = dimension.into();
             chk!(bool; AdjustWindowRectEx(
                 &mut rect,
@@ -72,12 +77,12 @@ impl WindowInner {
                 false,
                 WINDOW_EX_STYLE::default()
             ))?;
-            let title = WinString::new(title).expect("Window name contained null byte");
+            let title = U16CString::from_str(title).expect("Window name contained null byte");
 
-            chk!(ptr; CreateWindowExA(
+            chk!(ptr; CreateWindowExW(
                     WINDOW_EX_STYLE::default(),
-                    this.window_class.class_name(),
-                    &title,
+                    PCWSTR::from_raw(this.window_class.class_name().as_ptr()),
+                    PCWSTR::from_raw(title.as_ptr()),
                     WS_OVERLAPPEDWINDOW,
                     CW_USEDEFAULT,
                     CW_USEDEFAULT,
@@ -146,7 +151,7 @@ impl WindowInner {
 
                 // Our window is being destroyed, so we must clean up our Rc'd
                 // handle on the Win32 side.
-                let self_ = chk!(last_err; SetWindowLongPtrA(self.hwnd(), GWLP_USERDATA, 0))
+                let self_ = chk!(last_err; SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0))
                     .unwrap() as *const Self;
                 let _ = unsafe { Rc::from_raw(self_) };
 
@@ -172,7 +177,7 @@ impl WindowInner {
         // reference our rust window type in the user data section of the Win32
         // window.
         if umsg == WM_NCCREATE {
-            let create_struct = lparam.0 as *const CREATESTRUCTA;
+            let create_struct = lparam.0 as *const CREATESTRUCTW;
             // SAFETY: The `CREATESRUCTA` structure is guaranteed by the Win32
             // API to be valid if we've received an event of type `WM_NCCREATE`.
             let self_ = unsafe { (*create_struct).lpCreateParams } as *const Self;
@@ -183,13 +188,13 @@ impl WindowInner {
             // could be happening.
             unsafe { (*self_).hwnd.set(hwnd.0) };
 
-            chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_USERDATA, self_ as _)).unwrap();
-            chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_WNDPROC, (Self::wnd_proc_thunk as usize) as isize))
+            chk!(last_err; SetWindowLongPtrW(hwnd, GWLP_USERDATA, self_ as _)).unwrap();
+            chk!(last_err; SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (Self::wnd_proc_thunk as usize) as isize))
                 .unwrap();
         }
 
         // We _always_ pass our message through to the default window procedure.
-        unsafe { DefWindowProcA(hwnd, umsg, wparam, lparam) }
+        unsafe { DefWindowProcW(hwnd, umsg, wparam, lparam) }
     }
 
     /// A minimal shim which forwards Win32 window proc messages to our own
@@ -200,7 +205,7 @@ impl WindowInner {
         wparam: WPARAM,
         lparam: LPARAM,
     ) -> LRESULT {
-        if let Ok(ptr) = chk!(nonzero_isize; GetWindowLongPtrA(hwnd, GWLP_USERDATA)) {
+        if let Ok(ptr) = chk!(nonzero_isize; GetWindowLongPtrW(hwnd, GWLP_USERDATA)) {
             let self_ = ptr.get() as *const Self;
 
             unsafe {
@@ -212,6 +217,6 @@ impl WindowInner {
             }
         }
 
-        unsafe { DefWindowProcA(hwnd, umsg, wparam, lparam) }
+        unsafe { DefWindowProcW(hwnd, umsg, wparam, lparam) }
     }
 }

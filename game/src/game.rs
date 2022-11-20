@@ -3,7 +3,7 @@ use crate::resources::FERRIS_ICON;
 use ::tracing::debug;
 use ::win32::{geom::Dimension2D, window::Window, *};
 use ::windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageA, GetMessageA, PostQuitMessage, TranslateMessage, MSG,
+    DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };
 
 pub struct Game {}
@@ -20,13 +20,13 @@ impl Game {
                 height: 600,
             },
             "Main Window",
-            Some(FERRIS_ICON.id()),
+            Some(FERRIS_ICON.id().into()),
         )?);
 
         let mut msg = MSG::default();
-        while unsafe { GetMessageA(&mut msg, None, 0, 0) }.as_bool() {
+        while unsafe { GetMessageW(&mut msg, None, 0, 0) }.as_bool() {
             unsafe { TranslateMessage(&msg) };
-            unsafe { DispatchMessageA(&msg) };
+            unsafe { DispatchMessageW(&msg) };
 
             if main_window
                 .as_mut()
