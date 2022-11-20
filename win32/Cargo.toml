@@ -5,12 +5,14 @@ edition = "2021"
 authors = ["Connor Power <connor@connorpower.com>"]
 
 [dependencies]
+bitvec = "1.0.1"
 thiserror = "1.0.37"
 lazy_static = "1.4.0"
 num-traits = "0.2.15"
 maplit = "1.0.2"
 parking_lot = "0.12.1"
 paste = "1.0.9"
+strum = { version = "0.24.1", features = ["derive"] }
 tokio = { version = "1.21.2", features = ["sync"] }
 tracing = "0.1.37"
 widestring = "1.0.2"
@@ -22,6 +24,7 @@ features = [
     "Win32_Graphics_Gdi",
     "Win32_System_LibraryLoader",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
 ]
 
 [dev-dependencies]

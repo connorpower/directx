@@ -119,9 +119,13 @@
 
 pub(crate) mod class;
 pub(crate) mod inner;
-
 use class::*;
 use inner::*;
+
+mod key;
+mod keyboard;
+pub use key::*;
+pub use keyboard::*;
 
 use crate::{errors::*, geom::Dimension2D, types::*, window::WindowInner};
 

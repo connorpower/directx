@@ -23,6 +23,9 @@ use ::windows::{
         },
     },
 };
+use windows::Win32::UI::WindowsAndMessaging::{
+    WM_CHAR, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+};
 
 /// The next step to take when handling a window proc message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,7 +139,7 @@ impl WindowInner {
         Ok(())
     }
 
-    // TODO: forward to the window. This shouldn't be implemented only on the
+    // TODO: forward to the window? This shouldn't be implemented only on the
     // inner type.
     fn handle_message(&self, umsg: u32, _wparam: WPARAM, _lparam: LPARAM) -> Forwarding {
         trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, _wparam, _lparam));
@@ -145,6 +148,15 @@ impl WindowInner {
             WM_CLOSE => {
                 self.close_request.store(true, Ordering::SeqCst);
                 return Forwarding::None;
+            }
+            WM_KEYDOWN | WM_SYSKEYDOWN => {
+                // TODO
+            }
+            WM_KEYUP | WM_SYSKEYUP => {
+                // TODO
+            }
+            WM_CHAR => {
+                // TODO
             }
             WM_NCDESTROY => {
                 debug!(wnd_title = %self.title, "Destroying window inner");
