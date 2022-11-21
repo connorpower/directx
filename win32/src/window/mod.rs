@@ -119,12 +119,8 @@
 
 pub(crate) mod class;
 pub(crate) mod inner;
-mod key;
-mod keyboard;
 mod wnd;
 
 use class::*;
 use inner::*;
-pub use key::*;
-pub use keyboard::*;
 pub use wnd::*;

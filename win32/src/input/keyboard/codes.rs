@@ -1,3 +1,5 @@
+//! Win32 virtual key codes.
+
 /// Key codes for key-pressed and key-released events. These are not the same as
 /// the unicode characters which result from keyboard entry, and should
 /// therefore not be used for text input but instead for simple key

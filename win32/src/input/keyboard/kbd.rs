@@ -1,3 +1,5 @@
+//! Keyboard state and text input tracking.
+
 use ::bitvec::prelude::*;
 use ::std::{char::REPLACEMENT_CHARACTER, collections::VecDeque};
 use ::tracing::trace;
