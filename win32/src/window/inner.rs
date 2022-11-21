@@ -23,18 +23,6 @@ use ::windows::{
         },
     },
 };
-use windows::Win32::UI::WindowsAndMessaging::{
-    WM_CHAR, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
-};
-
-/// The next step to take when handling a window proc message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Forwarding {
-    /// The message should be forwarded to the system's default implementation.
-    ForwardToSystem,
-    /// The message has been completely handled. Do not forward the message.
-    None,
-}
 
 pub(super) struct WindowInner {
     /// A reference-counted handle to the Win32 window class registered for
@@ -139,24 +127,21 @@ impl WindowInner {
         Ok(())
     }
 
-    // TODO: forward to the window? This shouldn't be implemented only on the
-    // inner type.
-    fn handle_message(&self, umsg: u32, _wparam: WPARAM, _lparam: LPARAM) -> Forwarding {
+    /// Handles a Win32 message.
+    ///
+    /// ## Return Value
+    ///
+    /// Returns `true` if the message was handled and should not be forwarded to
+    /// the default window procedure. Returns `false` if the message was not
+    /// handled, or was only intercepted/tapped on the way though and should
+    /// still be forwarded to the default procedure.
+    fn handle_message(&self, umsg: u32, _wparam: WPARAM, _lparam: LPARAM) -> bool {
         trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, _wparam, _lparam));
 
         match umsg {
             WM_CLOSE => {
                 self.close_request.store(true, Ordering::SeqCst);
-                return Forwarding::None;
-            }
-            WM_KEYDOWN | WM_SYSKEYDOWN => {
-                // TODO
-            }
-            WM_KEYUP | WM_SYSKEYUP => {
-                // TODO
-            }
-            WM_CHAR => {
-                // TODO
+                true
             }
             WM_NCDESTROY => {
                 debug!(wnd_title = %self.title, "Destroying window inner");
@@ -169,11 +154,12 @@ impl WindowInner {
 
                 // Clear our window handle now that we're destroyed.
                 self.hwnd.set(0);
-            }
-            _ => (),
-        }
 
-        Forwarding::ForwardToSystem
+                // forward to default procedure too
+                false
+            }
+            _ => false,
+        }
     }
 
     /// C-function Win32 window procedure performs one-time setup of the
@@ -223,7 +209,7 @@ impl WindowInner {
             unsafe {
                 // Add extra retain for the duration of following call
                 Rc::increment_strong_count(self_);
-                if Rc::from_raw(self_).handle_message(umsg, wparam, lparam) == Forwarding::None {
+                if Rc::from_raw(self_).handle_message(umsg, wparam, lparam) {
                     return LRESULT(0);
                 }
             }
