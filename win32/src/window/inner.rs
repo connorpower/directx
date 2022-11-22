@@ -1,4 +1,7 @@
-use crate::{errors::*, geom::Dimension2D, invoke::chk, types::*, window::WindowClass};
+use crate::{
+    errors::*, geom::Dimension2D, input::keyboard::Adapter as KbdAdapter, invoke::chk, types::*,
+    window::WindowClass,
+};
 
 use ::std::{
     cell::Cell,
@@ -8,7 +11,7 @@ use ::std::{
         Arc,
     },
 };
-use ::tracing::{debug, trace};
+use ::tracing::debug;
 use ::widestring::U16CString;
 use ::windows::{
     core::PCWSTR,
@@ -135,8 +138,14 @@ impl WindowInner {
     /// the default window procedure. Returns `false` if the message was not
     /// handled, or was only intercepted/tapped on the way though and should
     /// still be forwarded to the default procedure.
-    fn handle_message(&self, umsg: u32, _wparam: WPARAM, _lparam: LPARAM) -> bool {
-        trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, _wparam, _lparam));
+    fn handle_message(&self, umsg: u32, wparam: WPARAM, lparam: LPARAM) -> bool {
+        ::tracing::trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, wparam, lparam));
+
+        if KbdAdapter::handles_msg(umsg, wparam, lparam) {
+            let event = KbdAdapter::adapt(umsg, wparam, lparam);
+            // TODO: forward to keyboard class
+            return true;
+        }
 
         match umsg {
             WM_CLOSE => {

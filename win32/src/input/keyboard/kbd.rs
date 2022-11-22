@@ -5,7 +5,7 @@ use ::std::{char::REPLACEMENT_CHARACTER, collections::VecDeque};
 use ::tracing::trace;
 use ::widestring::WideChar;
 
-use super::KeyCode;
+use super::{KeyCode, KeystrokeFlags};
 
 /// Length of the input queue, after which point the earliest characters are
 /// dropped.
@@ -13,16 +13,19 @@ const INPUT_QUEUE_CAPACITY: usize = 32;
 
 /// A representation of a Win32 virtual key event. These are purely internal and
 /// are consumed by the `Keyboard` type.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum KeyEvent {
     KeyDown {
         key_code: KeyCode,
-        is_repeat_event: bool,
+        flags: KeystrokeFlags,
     },
     KeyUp {
         key_code: KeyCode,
+        flags: KeystrokeFlags,
     },
     Input {
         wchar: WideChar,
+        flags: KeystrokeFlags,
     },
 }
 
@@ -54,18 +57,15 @@ impl Keyboard {
     /// event will be reflected in the next user call to [is_key_pressed] or
     pub(crate) fn process_evt(&mut self, evt: KeyEvent) {
         match evt {
-            KeyEvent::KeyDown {
-                key_code,
-                is_repeat_event,
-            } => {
-                if !is_repeat_event {
+            KeyEvent::KeyDown { key_code, flags } => {
+                if !flags.was_previous_state_down {
                     *self.mut_bit_for_key(key_code).as_mut() = true;
                 }
             }
-            KeyEvent::KeyUp { key_code } => {
+            KeyEvent::KeyUp { key_code, .. } => {
                 *self.mut_bit_for_key(key_code).as_mut() = false;
             }
-            KeyEvent::Input { wchar } => {
+            KeyEvent::Input { wchar, .. } => {
                 match self.pending_surrogate.take() {
                     Some(high) => {
                         // Combine surrogates & append to input queue. If anything fails at this
@@ -129,6 +129,40 @@ mod tests {
     use ::std::ops::Not;
     use ::strum::IntoEnumIterator;
     use ::widestring::u16str;
+    use ::windows::Win32::{
+        Foundation::{LPARAM, WPARAM},
+        UI::WindowsAndMessaging::*,
+    };
+
+    #[derive(PartialEq, Eq)]
+    enum KeyRepeat {
+        Repeat,
+        Initial,
+    }
+
+    impl KeystrokeFlags {
+        fn test_key_down_flags(repeat: KeyRepeat) -> Self {
+            Self {
+                repeat_count: if repeat == KeyRepeat::Repeat { 1 } else { 0 },
+                scan_code: 0x1E, // 'A'
+                is_extended_key: false,
+                is_alt_pressed: false,
+                was_previous_state_down: repeat == KeyRepeat::Repeat,
+                is_key_release: false,
+            }
+        }
+
+        fn test_key_up_flags(repeat: KeyRepeat) -> Self {
+            Self {
+                repeat_count: if repeat == KeyRepeat::Repeat { 1 } else { 0 },
+                scan_code: 0x1E, // 'A'
+                is_extended_key: false,
+                is_alt_pressed: false,
+                was_previous_state_down: repeat == KeyRepeat::Initial,
+                is_key_release: true,
+            }
+        }
+    }
 
     /// A basic smoke test for key pressed events.
     #[test]
@@ -138,7 +172,7 @@ mod tests {
         assert!(kbd.is_key_pressed(KeyCode::Up).not());
         kbd.process_evt(KeyEvent::KeyDown {
             key_code: KeyCode::Up,
-            is_repeat_event: false,
+            flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
         });
         assert!(kbd.is_key_pressed(KeyCode::Up));
     }
@@ -155,26 +189,27 @@ mod tests {
         for evt in [
             KeyEvent::KeyDown {
                 key_code: KeyCode::A,
-                is_repeat_event: false,
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
             },
             KeyEvent::KeyDown {
                 key_code: KeyCode::Left,
-                is_repeat_event: false,
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
             },
             KeyEvent::KeyDown {
                 key_code: KeyCode::Space,
-                is_repeat_event: false,
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
             },
             KeyEvent::KeyDown {
                 key_code: KeyCode::Left,
-                is_repeat_event: true,
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Repeat),
             },
             KeyEvent::KeyUp {
                 key_code: KeyCode::A,
+                flags: KeystrokeFlags::test_key_up_flags(KeyRepeat::Initial),
             },
             KeyEvent::KeyDown {
                 key_code: KeyCode::Left,
-                is_repeat_event: true,
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Repeat),
             },
         ] {
             kbd.process_evt(evt);
@@ -205,10 +240,10 @@ mod tests {
         );
 
         // Add basic ASCII chars to queue
-        for evt in "Hello, world!"
-            .chars()
-            .map(|c| KeyEvent::Input { wchar: c as _ })
-        {
+        for evt in "Hello, world!".chars().map(|c| KeyEvent::Input {
+            flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+            wchar: c as _,
+        }) {
             kbd.process_evt(evt);
         }
 
@@ -231,7 +266,10 @@ mod tests {
 
         for evt in [0xD834_u16, 0xDD1E, 0x006d, 0x0075, 0x0073, 0x0069, 0x0063]
             .into_iter()
-            .map(|wchar| KeyEvent::Input { wchar })
+            .map(|wchar| KeyEvent::Input {
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+                wchar,
+            })
         {
             kbd.process_evt(evt);
         }
@@ -250,13 +288,20 @@ mod tests {
     fn test_input_queue_surrogate_pair_handling() {
         let mut kbd = Keyboard::new();
 
-        kbd.process_evt(KeyEvent::Input { wchar: 0xD834 });
+        // TODO: do we need to be sending key up char events too?
+        kbd.process_evt(KeyEvent::Input {
+            flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+            wchar: 0xD834,
+        });
         assert!(
             kbd.drain_input_queue().next().is_none(),
             "Input queue should wait for following low surrogate before returning"
         );
 
-        kbd.process_evt(KeyEvent::Input { wchar: 0xDD1E });
+        kbd.process_evt(KeyEvent::Input {
+            flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+            wchar: 0xDD1E,
+        });
 
         let input: String = kbd.drain_input_queue().collect();
         assert_eq!(&input, "𝄞");
@@ -275,7 +320,10 @@ mod tests {
 
         for evt in [0xD834_u16, 0xDD1E, 0x006d, 0x0075, 0x0073, 0x0069, 0x0063]
             .into_iter()
-            .map(|wchar| KeyEvent::Input { wchar })
+            .map(|wchar| KeyEvent::Input {
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+                wchar,
+            })
         {
             kbd.process_evt(evt);
         }
@@ -296,7 +344,10 @@ mod tests {
         for evt in u16str!("𝄞🌉𝄞🌉a𝄞b🌉c")
             .as_slice()
             .into_iter()
-            .map(|c| KeyEvent::Input { wchar: *c as _ })
+            .map(|c| KeyEvent::Input {
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+                wchar: *c as _,
+            })
         {
             kbd.process_evt(evt);
         }
@@ -320,7 +371,10 @@ mod tests {
         // Add basic ASCII chars to queue
         for evt in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
             .chars()
-            .map(|c| KeyEvent::Input { wchar: c as _ })
+            .map(|c| KeyEvent::Input {
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+                wchar: c as _,
+            })
         {
             kbd.process_evt(evt);
         }
@@ -350,7 +404,10 @@ mod tests {
         for evt in u16str!("𝄞🌉1𝄞🌉2𝄞🌉3𝄞🌉4𝄞🌉5𝄞🌉6𝄞🌉7𝄞🌉8𝄞🌉9𝄞🌉0𝄞🌉A𝄞🌉B𝄞🌉C𝄞🌉")
             .as_slice()
             .into_iter()
-            .map(|c| KeyEvent::Input { wchar: *c as _ })
+            .map(|c| KeyEvent::Input {
+                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+                wchar: *c as _,
+            })
         {
             kbd.process_evt(evt);
         }
@@ -364,5 +421,82 @@ mod tests {
             kbd.drain_input_queue().next().is_none(),
             "Queue should be empty after last call to drain"
         );
+    }
+
+    /// Test text entry for 'ö' (" + o combo on international keyboard).
+    ///
+    /// Events were captured via debugging utils.
+    #[test]
+    fn test_input_queue_international_input() {
+        use super::super::Adapter;
+        let mut kbd = Keyboard::new();
+
+        for (umsg, wparam, lparam) in [
+            (WM_KEYDOWN, 0x10, 0x002A0001),
+            (WM_KEYDOWN, 0xDE, 0x00280001),
+            (WM_DEADCHAR, 0x22, 0x00280001),
+            (WM_KEYUP, 0xDE, 0xC0280001),
+            (WM_KEYUP, 0x10, 0xC02A0001),
+            (WM_KEYDOWN, 0x4F, 0x00180001),
+            (WM_CHAR, 0xF6, 0x00180001),
+            (WM_KEYUP, 0x4F, 0xC0180001),
+        ] {
+            if let Some(evt) = Adapter::adapt(umsg, WPARAM(wparam), LPARAM(lparam)) {
+                kbd.process_evt(evt);
+            }
+        }
+
+        let input: String = kbd.drain_input_queue().collect();
+        assert_eq!(input, "ö");
+        for key_code in KeyCode::iter() {
+            assert!(
+                !kbd.is_key_pressed(key_code),
+                "{key_code:?} key still pressed"
+            );
+        }
+    }
+
+    /// Test emoji input for 👌 (using emoji keyboard: "win-.")
+    ///
+    /// Events captured using debug utils.
+    #[test]
+    fn test_input_queue_emoji() {
+        use super::super::Adapter;
+        let mut kbd = Keyboard::new();
+
+        for (umsg, wparam, lparam) in [
+            (WM_IME_REQUEST, 0x0006, 0x643E50BC90),
+            (WM_GETICON, 0x0000, 0x0000000078),
+            (WM_KEYDOWN, 0x005B, 0x00015B0001),
+            (WM_KEYUP, 0x00BE, 0x0080340001),
+            (WM_KEYUP, 0x005B, 0x00C15B0001),
+            (WM_IME_STARTCOMPOSITION, 0x0000, 0x0000000000),
+            (WM_IME_NOTIFY, 0x000F, 0x0020600A01),
+            (WM_IME_NOTIFY, 0x000F, 0x0020600A01),
+            (WM_IME_KEYLAST, 0xD83D, 0x0000000800),
+            (WM_IME_CHAR, 0xD83D, 0x0000000001),
+            (WM_IME_CHAR, 0xDC4C, 0x0000000001),
+            (WM_IME_NOTIFY, 0x010D, 0x0000000000),
+            (WM_IME_ENDCOMPOSITION, 0x0000, 0x0000000000),
+            (WM_IME_NOTIFY, 0x010E, 0x0000000000),
+            (WM_CHAR, 0xD83D, 0x0000000001),
+            (WM_CHAR, 0xDC4C, 0x0000000001),
+            (0xC052, 0x0001, 0x643E50D570), // Unknown message
+            (WM_IME_REQUEST, 0x0006, 0x643E50D570),
+        ] {
+            if let Some(evt) = Adapter::adapt(umsg, WPARAM(wparam), LPARAM(lparam)) {
+                println!("{evt:#?}");
+                kbd.process_evt(evt);
+            }
+        }
+
+        let input: String = kbd.drain_input_queue().collect();
+        assert_eq!(input, "👌");
+        for key_code in KeyCode::iter() {
+            assert!(
+                !kbd.is_key_pressed(key_code),
+                "{key_code:?} key still pressed"
+            );
+        }
     }
 }

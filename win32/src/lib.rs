@@ -1,5 +1,17 @@
 //! Utilities for interacting with Win32 API.
 
+#![deny(rust_2018_idioms)]
+#![cfg_attr(
+    doc,
+    warn(
+        rustdoc::bare_urls,
+        rustdoc::broken_intra_doc_links,
+        rustdoc::invalid_codeblock_attributes,
+        rustdoc::invalid_rust_codeblocks,
+        rustdoc::missing_crate_level_docs,
+    )
+)]
+
 pub mod debug;
 pub mod errors;
 pub mod geom;

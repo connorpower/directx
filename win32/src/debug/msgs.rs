@@ -226,7 +226,6 @@ lazy_static! {
         0x00F8 => "BM_SETDONTCLICK",
         0x00FF => "WM_INPUT",
         0x0100 => "WM_KEYDOWN",
-        0x0100 => "WM_KEYFIRST",
         0x0101 => "WM_KEYUP",
         0x0102 => "WM_CHAR",
         0x0103 => "WM_DEADCHAR",

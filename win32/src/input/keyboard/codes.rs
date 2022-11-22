@@ -355,22 +355,22 @@ impl KeyCode {
     }
 }
 
-impl TryFrom<u16> for KeyCode {
+impl TryFrom<usize> for KeyCode {
     type Error = ();
 
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        assert!(
-            value <= u8::MAX as u16,
-            "Win32 virutal key code exceeded 256"
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        debug_assert!(
+            value <= u8::MAX as usize,
+            "Win32 virtual key code exceeded 256"
         );
 
-        LookupTable[(value as u8) as usize].ok_or(())
+        VKCODE_TABLE[(value as u8) as usize].ok_or(())
     }
 }
 
-/// An internal lookup table wich maps between Win32 virtual key codes and our
+/// An internal lookup table which maps between Win32 virtual key codes and our
 /// strong `KeyCode` type.
-const LookupTable: [Option<KeyCode>; 256] = [
+const VKCODE_TABLE: [Option<KeyCode>; 256] = [
     None,
     Some(KeyCode::LeftMouseButton),
     Some(KeyCode::RightMouseButton),
