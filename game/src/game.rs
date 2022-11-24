@@ -40,6 +40,9 @@ impl Game {
                     PostQuitMessage(0);
                 }
             }
+
+            //// TODO: build up string and set window title (needs mutable keyboard access to
+            //// drain buffer)
         }
 
         Ok(())

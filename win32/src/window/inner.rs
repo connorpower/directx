@@ -1,10 +1,16 @@
 use crate::{
-    errors::*, geom::Dimension2D, input::keyboard::Adapter as KbdAdapter, invoke::chk, types::*,
+    errors::*,
+    geom::Dimension2D,
+    input::keyboard::{Adapter as KbdAdapter, Keyboard},
+    invoke::chk,
+    types::*,
     window::WindowClass,
 };
 
+use ::parking_lot::RwLock;
 use ::std::{
     cell::Cell,
+    ops::Deref,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -43,6 +49,8 @@ pub(super) struct WindowInner {
     /// either be actioned by dropping the top level window, or the close
     /// request can be cleared if it is to be ignored.
     close_request: AtomicBool,
+    /// Keyboard and text input state.
+    keyboard: RwLock<Keyboard>,
 }
 
 impl WindowInner {
@@ -60,6 +68,7 @@ impl WindowInner {
             hwnd: Default::default(),
             dimension,
             close_request: AtomicBool::new(false),
+            keyboard: RwLock::new(Keyboard::new()),
         });
 
         let hwnd = {
@@ -123,6 +132,10 @@ impl WindowInner {
         self.close_request.swap(false, Ordering::SeqCst)
     }
 
+    pub fn keyboard(&self) -> impl Deref<Target = Keyboard> + '_ {
+        self.keyboard.read()
+    }
+
     pub(super) fn destroy(&self) -> Result<()> {
         if let Some(h) = self.hwnd() {
             chk!(bool; DestroyWindow(h))?;
@@ -142,8 +155,9 @@ impl WindowInner {
         ::tracing::trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, wparam, lparam));
 
         if KbdAdapter::handles_msg(umsg, wparam, lparam) {
-            let event = KbdAdapter::adapt(umsg, wparam, lparam);
-            // TODO: forward to keyboard class
+            if let Some(event) = KbdAdapter::adapt(umsg, wparam, lparam) {
+                self.keyboard.write().process_evt(event);
+            }
             return true;
         }
 

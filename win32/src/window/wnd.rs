@@ -1,8 +1,10 @@
 //! Top-level rust Window object which abstracts the underlying Win32 API.
 
-use crate::{errors::*, geom::Dimension2D, types::*, window::WindowInner};
+use crate::{
+    errors::*, geom::Dimension2D, input::keyboard::Keyboard, types::*, window::WindowInner,
+};
 
-use ::std::rc::Rc;
+use ::std::{ops::Deref, rc::Rc};
 use ::tracing::{debug, error};
 use ::windows::Win32::Foundation::HWND;
 
@@ -44,6 +46,12 @@ impl Window {
     /// dropped, so the close request can be ignored if needed.
     pub fn clear_close_request(&mut self) -> bool {
         self.inner.clear_close_request()
+    }
+
+    /// Reads the keyboard state. A read lock is held during this process, so
+    /// the reference must be dropped for further keyboard input to be handled.
+    pub fn keyboard(&self) -> impl Deref<Target = Keyboard> + '_ {
+        self.inner.keyboard()
     }
 
     // TODO: should allow registration of an handle_message callback with strong
