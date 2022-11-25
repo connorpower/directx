@@ -10,7 +10,7 @@ use crate::{
 use ::parking_lot::RwLock;
 use ::std::{
     cell::Cell,
-    ops::Deref,
+    ops::DerefMut,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -134,8 +134,8 @@ impl WindowInner {
         self.close_request.swap(false, Ordering::SeqCst)
     }
 
-    pub fn keyboard(&self) -> impl Deref<Target = Keyboard> + '_ {
-        self.keyboard.read()
+    pub fn keyboard(&self) -> impl DerefMut<Target = Keyboard> + '_ {
+        self.keyboard.write()
     }
 
     pub(super) fn destroy(&self) -> Result<()> {

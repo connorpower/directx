@@ -4,7 +4,7 @@ use crate::{
     errors::*, geom::Dimension2D, input::keyboard::Keyboard, types::*, window::WindowInner,
 };
 
-use ::std::{ops::Deref, rc::Rc};
+use ::std::{ops::DerefMut, rc::Rc};
 use ::tracing::{debug, error};
 use ::windows::Win32::Foundation::HWND;
 
@@ -50,7 +50,7 @@ impl Window {
 
     /// Reads the keyboard state. A read lock is held during this process, so
     /// the reference must be dropped for further keyboard input to be handled.
-    pub fn keyboard(&self) -> impl Deref<Target = Keyboard> + '_ {
+    pub fn keyboard(&self) -> impl DerefMut<Target = Keyboard> + '_ {
         self.inner.keyboard()
     }
 
