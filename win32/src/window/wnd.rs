@@ -1,12 +1,17 @@
 //! Top-level rust Window object which abstracts the underlying Win32 API.
 
 use crate::{
-    errors::*, geom::Dimension2D, input::keyboard::Keyboard, types::*, window::WindowInner,
+    errors::*, geom::Dimension2D, input::keyboard::Keyboard, invoke::chk, types::*,
+    window::WindowInner,
 };
 
 use ::std::{ops::DerefMut, rc::Rc};
 use ::tracing::{debug, error};
-use ::windows::Win32::Foundation::HWND;
+use ::widestring::U16CString;
+use ::windows::{
+    core::PCWSTR,
+    Win32::{Foundation::HWND, UI::WindowsAndMessaging::SetWindowTextW},
+};
 
 /// A rusty wrapper around Win32 window class.
 ///
@@ -54,8 +59,11 @@ impl Window {
         self.inner.keyboard()
     }
 
-    // TODO: should allow registration of an handle_message callback with strong
-    // message types.
+    /// Set the window title.
+    pub fn set_title(&self, title: &str) -> Result<()> {
+        let string = U16CString::from_str_truncate(title);
+        chk!(bool; SetWindowTextW(self.hwnd(), PCWSTR::from_raw(string.as_ptr()))).map(|_| ())
+    }
 }
 
 impl Drop for Window {
