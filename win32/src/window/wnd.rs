@@ -37,7 +37,7 @@ impl Window {
 
     /// Get a handle to the Win32 window's handle. This is often required when
     /// interacting with other APIs.
-    pub fn hwnd(&self) -> Option<HWND> {
+    pub fn hwnd(&self) -> HWND {
         self.inner.hwnd()
     }
 

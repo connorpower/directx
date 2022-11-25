@@ -120,9 +120,11 @@ impl WindowInner {
     /// interacting with other APIs.
     ///
     /// If `None`, then the window has already been destroyed on the Win32 side.
-    pub(super) fn hwnd(&self) -> Option<HWND> {
+    pub(super) fn hwnd(&self) -> HWND {
         let val = self.hwnd.get();
-        if val == 0 { None } else { Some(HWND(val)) }
+        assert_ne!(val, 0, "Window handle was NULL");
+
+        HWND(val)
     }
 
     /// Returns whether the window has requested to close, and immediately
@@ -137,9 +139,7 @@ impl WindowInner {
     }
 
     pub(super) fn destroy(&self) -> Result<()> {
-        if let Some(h) = self.hwnd() {
-            chk!(bool; DestroyWindow(h))?;
-        }
+        chk!(bool; DestroyWindow(self.hwnd()))?;
         Ok(())
     }
 
