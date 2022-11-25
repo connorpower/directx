@@ -68,11 +68,12 @@ impl Keyboard {
             KeyEvent::Input { wchar, .. } => {
                 match self.pending_surrogate.take() {
                     Some(high) => {
+                        let low = wchar;
                         // Combine surrogates & append to input queue. If anything fails at this
                         // point we don't have a recourse for recovery so we take the unicode
                         // replacement character instead.
                         self.input_queue.extend(
-                            char::decode_utf16([high, wchar])
+                            char::decode_utf16([high, low])
                                 .map(|r| r.unwrap_or(REPLACEMENT_CHARACTER)),
                         );
                     }
@@ -169,7 +170,7 @@ mod tests {
     fn test_key_pressed_basic() {
         let mut kbd = Keyboard::new();
 
-        assert!(kbd.is_key_pressed(KeyCode::Up).not());
+        assert!(!kbd.is_key_pressed(KeyCode::Up));
         kbd.process_evt(KeyEvent::KeyDown {
             key_code: KeyCode::Up,
             flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
@@ -216,7 +217,6 @@ mod tests {
         }
 
         let expected_pressed = [KeyCode::Space, KeyCode::Left];
-
         for key_code in expected_pressed {
             assert!(kbd.is_key_pressed(key_code));
         }
@@ -288,7 +288,6 @@ mod tests {
     fn test_input_queue_surrogate_pair_handling() {
         let mut kbd = Keyboard::new();
 
-        // TODO: do we need to be sending key up char events too?
         kbd.process_evt(KeyEvent::Input {
             flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
             wchar: 0xD834,
@@ -423,7 +422,7 @@ mod tests {
         );
     }
 
-    /// Test text entry for 'ö' (" + o combo on international keyboard).
+    /// Test text entry for 'ö' ('"' + 'o' combo on international keyboard).
     ///
     /// Events were captured via debugging utils.
     #[test]
