@@ -317,18 +317,15 @@ mod tests {
     fn test_input_queue_lone_low_surrogate() {
         let mut kbd = Keyboard::new();
 
-        for evt in [0xD834_u16, 0xDD1E, 0x006d, 0x0075, 0x0073, 0x0069, 0x0063]
-            .into_iter()
-            .map(|wchar| KeyEvent::Input {
-                flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
-                wchar,
-            })
-        {
+        for evt in [0xDD1E, 0x006d].into_iter().map(|wchar| KeyEvent::Input {
+            flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
+            wchar,
+        }) {
             kbd.process_evt(evt);
         }
 
         let input: String = kbd.drain_input_queue().collect();
-        assert_eq!(&input, "𝄞music");
+        assert_eq!(&input, "�m");
     }
 
     // Test that several unicode characters requiring surrogate pairs are correctly
