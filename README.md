@@ -1,4 +1,4 @@
-![CI Status](https://github.com/connorpower/directx/actions/workflows/rust.yml/badge.svg)
+![CI Status](https://github.com/connorpower/directx/actions/workflows/CI.yml/badge.svg)
 
 # directx
 
