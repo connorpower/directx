@@ -26,8 +26,8 @@ impl<I> InputBuffer<I>
 where
     I: ExactSizeIterator<Item = char>,
 {
-    /// The number of backspaces which preceded any text in the [input] buffer
-    /// and should be removed from to any _previously_ drained input.
+    /// The number of backspaces which preceded any text in the [Self::chars]
+    /// buffer and should be removed from to any _previously_ drained input.
     pub fn num_backspaces(&self) -> usize {
         self.n_backspaces
     }
@@ -279,7 +279,7 @@ mod tests {
     impl KeystrokeFlags {
         fn test_key_down_flags(repeat: KeyRepeat) -> Self {
             Self {
-                repeat_count: if repeat == KeyRepeat::Repeat { 1 } else { 0 },
+                repeat_count: u16::from(repeat == KeyRepeat::Repeat),
                 scan_code: 0x1E, // 'A'
                 is_extended_key: false,
                 is_alt_pressed: false,
@@ -290,7 +290,7 @@ mod tests {
 
         fn test_key_up_flags(repeat: KeyRepeat) -> Self {
             Self {
-                repeat_count: if repeat == KeyRepeat::Repeat { 1 } else { 0 },
+                repeat_count: u16::from(repeat == KeyRepeat::Repeat),
                 scan_code: 0x1E, // 'A'
                 is_extended_key: false,
                 is_alt_pressed: false,
@@ -474,7 +474,7 @@ mod tests {
 
         for evt in u16str!("𝄞🌉𝄞🌉a𝄞b🌉c")
             .as_slice()
-            .into_iter()
+            .iter()
             .map(|c| KeyEvent::Input {
                 flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
                 wchar: *c as _,
@@ -534,7 +534,7 @@ mod tests {
 
         for evt in u16str!("𝄞🌉1𝄞🌉2𝄞🌉3𝄞🌉4𝄞🌉5𝄞🌉6𝄞🌉7𝄞🌉8𝄞🌉9𝄞🌉0𝄞🌉A𝄞🌉B𝄞🌉C𝄞🌉")
             .as_slice()
-            .into_iter()
+            .iter()
             .map(|c| KeyEvent::Input {
                 flags: KeystrokeFlags::test_key_down_flags(KeyRepeat::Initial),
                 wchar: *c as _,
