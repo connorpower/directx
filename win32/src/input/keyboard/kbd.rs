@@ -26,8 +26,8 @@ impl<I> InputBuffer<I>
 where
     I: ExactSizeIterator<Item = char>,
 {
-    /// The number of backspaces which preceded any text in the [input] buffer
-    /// and should be removed from to any _previously_ drained input.
+    /// The number of backspaces which preceded any text in the [Self::chars]
+    /// buffer and should be removed from to any _previously_ drained input.
     pub fn num_backspaces(&self) -> usize {
         self.n_backspaces
     }
