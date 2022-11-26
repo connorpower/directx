@@ -1,23 +1,19 @@
+# directx
+
 ![CI Status](https://github.com/connorpower/directx/actions/workflows/CI.yml/badge.svg)
 ![Rustdocs](https://github.com/connorpower/directx/actions/workflows/rustdocs.yml/badge.svg)
 
-# directx
-
 A small DirectX project in Rust. The project consists of a `::win32` library to
-abstract FFI details behind an somewhat idiomatic interface, together with a
-`::game` binary which serves as a simple test-bed for the library.
+abstract FFI, together with a `::game` binary which serves as a simple test-bed.
 
-## Rustdocs
-
-Rustdocs for the `::win32` library (`main` branch) are published to
-http://connorpower.com/directx/.
+[Documentation](http://connorpower.com/directx/)
 
 ## Requirements
 
 - Windows OS
 - Direct3D 11 graphics card support
 
-## Building
+## Usage
 
 To build and run the example, a simple cargo run suffices:
 
@@ -25,7 +21,7 @@ To build and run the example, a simple cargo run suffices:
 cargo run
 ```
 
-### Tracing Support
+## Tracing Support
 
 Both the `::win32` library and the example binary are instrumented with tokio's
 excellent [`::tracing`](https://github.com/tokio-rs/tracing) library.
@@ -46,3 +42,12 @@ cargo run --features stdio
 
 ![tracing example](./docs/images/tracing.png)
 
+## License
+
+This project is licensed under the [MIT license](LICENSE).
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in this repository by you, shall be licensed as MIT, without any
+additional terms or conditions.
