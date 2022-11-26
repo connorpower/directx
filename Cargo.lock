@@ -43,6 +43,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "d2d"
+version = "0.1.0"
+dependencies = [
+ "pretty_assertions",
+ "windows",
+]
+
+[[package]]
 name = "darling"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
