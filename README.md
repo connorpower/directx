@@ -1,10 +1,16 @@
 ![CI Status](https://github.com/connorpower/directx/actions/workflows/CI.yml/badge.svg)
+![Rustdocs](https://github.com/connorpower/directx/actions/workflows/rustdocs.yml/badge.svg)
 
 # directx
 
 A small DirectX project in Rust. The project consists of a `::win32` library to
 abstract FFI details behind an somewhat idiomatic interface, together with a
 `::game` binary which serves as a simple test-bed for the library.
+
+## Rustdocs
+
+Rustdocs for the `::win32` library (`main` branch) are published to
+http://connorpower.com/directx/.
 
 ## Requirements
 
