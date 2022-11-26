@@ -1,32 +1,37 @@
-use crate::{errors::*, geom::Dimension2D, invoke::chk, types::*, window::WindowClass};
+use crate::{
+    errors::*,
+    geom::Dimension2D,
+    input::keyboard::{Adapter as KbdAdapter, Keyboard},
+    invoke::chk,
+    types::*,
+    window::WindowClass,
+};
 
+use ::parking_lot::RwLock;
 use ::std::{
     cell::Cell,
+    ops::DerefMut,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
 };
-use ::tracing::{debug, trace};
-use ::windows::Win32::{
-    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
-    System::LibraryLoader::GetModuleHandleA,
-    UI::WindowsAndMessaging::{
-        AdjustWindowRectEx, CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA,
-        SetWindowLongPtrA, ShowWindow, CREATESTRUCTA, CW_USEDEFAULT, GWLP_USERDATA, GWLP_WNDPROC,
-        SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY, WS_OVERLAPPEDWINDOW,
+use ::tracing::debug;
+use ::widestring::U16CString;
+use ::windows::{
+    core::PCWSTR,
+    Win32::{
+        Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+        System::LibraryLoader::GetModuleHandleW,
+        UI::WindowsAndMessaging::{
+            AdjustWindowRectEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW,
+            SetWindowLongPtrW, ShowWindow, CREATESTRUCTW, CW_USEDEFAULT, GWLP_USERDATA,
+            GWLP_WNDPROC, SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY,
+            WS_OVERLAPPEDWINDOW,
+        },
     },
 };
-
-/// The next step to take when handling a window proc message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Forwarding {
-    /// The message should be forwarded to the system's default implementation.
-    ForwardToSystem,
-    /// The message has been completely handled. Do not forward the message.
-    None,
-}
 
 pub(super) struct WindowInner {
     /// A reference-counted handle to the Win32 window class registered for
@@ -44,6 +49,8 @@ pub(super) struct WindowInner {
     /// either be actioned by dropping the top level window, or the close
     /// request can be cleared if it is to be ignored.
     close_request: AtomicBool,
+    /// Keyboard and text input state.
+    keyboard: RwLock<Keyboard>,
 }
 
 impl WindowInner {
@@ -61,10 +68,11 @@ impl WindowInner {
             hwnd: Default::default(),
             dimension,
             close_request: AtomicBool::new(false),
+            keyboard: RwLock::new(Keyboard::new()),
         });
 
         let hwnd = {
-            let module = chk!(res; GetModuleHandleA(None))?;
+            let module = chk!(res; GetModuleHandleW(None))?;
             let mut rect = dimension.into();
             chk!(bool; AdjustWindowRectEx(
                 &mut rect,
@@ -72,12 +80,12 @@ impl WindowInner {
                 false,
                 WINDOW_EX_STYLE::default()
             ))?;
-            let title = WinString::new(title).expect("Window name contained null byte");
+            let title = U16CString::from_str(title).expect("Window name contained null byte");
 
-            chk!(ptr; CreateWindowExA(
+            chk!(ptr; CreateWindowExW(
                     WINDOW_EX_STYLE::default(),
-                    this.window_class.class_name(),
-                    &title,
+                    PCWSTR::from_raw(this.window_class.class_name().as_ptr()),
+                    PCWSTR::from_raw(title.as_ptr()),
                     WS_OVERLAPPEDWINDOW,
                     CW_USEDEFAULT,
                     CW_USEDEFAULT,
@@ -112,9 +120,11 @@ impl WindowInner {
     /// interacting with other APIs.
     ///
     /// If `None`, then the window has already been destroyed on the Win32 side.
-    pub(super) fn hwnd(&self) -> Option<HWND> {
+    pub(super) fn hwnd(&self) -> HWND {
         let val = self.hwnd.get();
-        if val == 0 { None } else { Some(HWND(val)) }
+        assert_ne!(val, 0, "Window handle was NULL");
+
+        HWND(val)
     }
 
     /// Returns whether the window has requested to close, and immediately
@@ -124,39 +134,55 @@ impl WindowInner {
         self.close_request.swap(false, Ordering::SeqCst)
     }
 
+    pub fn keyboard(&self) -> impl DerefMut<Target = Keyboard> + '_ {
+        self.keyboard.write()
+    }
+
     pub(super) fn destroy(&self) -> Result<()> {
-        if let Some(h) = self.hwnd() {
-            chk!(bool; DestroyWindow(h))?;
-        }
+        chk!(bool; DestroyWindow(self.hwnd()))?;
         Ok(())
     }
 
-    // TODO: forward to the window. This shouldn't be implemented only on the
-    // inner type.
-    fn handle_message(&self, umsg: u32, _wparam: WPARAM, _lparam: LPARAM) -> Forwarding {
-        trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, _wparam, _lparam));
+    /// Handles a Win32 message.
+    ///
+    /// ## Return Value
+    ///
+    /// Returns `true` if the message was handled and should not be forwarded to
+    /// the default window procedure. Returns `false` if the message was not
+    /// handled, or was only intercepted/tapped on the way though and should
+    /// still be forwarded to the default procedure.
+    fn handle_message(&self, umsg: u32, wparam: WPARAM, lparam: LPARAM) -> bool {
+        ::tracing::trace!(msg = %crate::debug::msgs::DebugMsg::new(umsg, wparam, lparam));
+
+        if KbdAdapter::handles_msg(umsg, wparam, lparam) {
+            if let Some(event) = KbdAdapter::adapt(umsg, wparam, lparam) {
+                self.keyboard.write().process_evt(event);
+            }
+            return true;
+        }
 
         match umsg {
             WM_CLOSE => {
                 self.close_request.store(true, Ordering::SeqCst);
-                return Forwarding::None;
+                true
             }
             WM_NCDESTROY => {
                 debug!(wnd_title = %self.title, "Destroying window inner");
 
                 // Our window is being destroyed, so we must clean up our Rc'd
                 // handle on the Win32 side.
-                let self_ = chk!(last_err; SetWindowLongPtrA(self.hwnd(), GWLP_USERDATA, 0))
+                let self_ = chk!(last_err; SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0))
                     .unwrap() as *const Self;
                 let _ = unsafe { Rc::from_raw(self_) };
 
                 // Clear our window handle now that we're destroyed.
                 self.hwnd.set(0);
-            }
-            _ => (),
-        }
 
-        Forwarding::ForwardToSystem
+                // forward to default procedure too
+                false
+            }
+            _ => false,
+        }
     }
 
     /// C-function Win32 window procedure performs one-time setup of the
@@ -172,7 +198,7 @@ impl WindowInner {
         // reference our rust window type in the user data section of the Win32
         // window.
         if umsg == WM_NCCREATE {
-            let create_struct = lparam.0 as *const CREATESTRUCTA;
+            let create_struct = lparam.0 as *const CREATESTRUCTW;
             // SAFETY: The `CREATESRUCTA` structure is guaranteed by the Win32
             // API to be valid if we've received an event of type `WM_NCCREATE`.
             let self_ = unsafe { (*create_struct).lpCreateParams } as *const Self;
@@ -183,13 +209,13 @@ impl WindowInner {
             // could be happening.
             unsafe { (*self_).hwnd.set(hwnd.0) };
 
-            chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_USERDATA, self_ as _)).unwrap();
-            chk!(last_err; SetWindowLongPtrA(hwnd, GWLP_WNDPROC, (Self::wnd_proc_thunk as usize) as isize))
+            chk!(last_err; SetWindowLongPtrW(hwnd, GWLP_USERDATA, self_ as _)).unwrap();
+            chk!(last_err; SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (Self::wnd_proc_thunk as usize) as isize))
                 .unwrap();
         }
 
         // We _always_ pass our message through to the default window procedure.
-        unsafe { DefWindowProcA(hwnd, umsg, wparam, lparam) }
+        unsafe { DefWindowProcW(hwnd, umsg, wparam, lparam) }
     }
 
     /// A minimal shim which forwards Win32 window proc messages to our own
@@ -200,18 +226,18 @@ impl WindowInner {
         wparam: WPARAM,
         lparam: LPARAM,
     ) -> LRESULT {
-        if let Ok(ptr) = chk!(nonzero_isize; GetWindowLongPtrA(hwnd, GWLP_USERDATA)) {
+        if let Ok(ptr) = chk!(nonzero_isize; GetWindowLongPtrW(hwnd, GWLP_USERDATA)) {
             let self_ = ptr.get() as *const Self;
 
             unsafe {
                 // Add extra retain for the duration of following call
                 Rc::increment_strong_count(self_);
-                if Rc::from_raw(self_).handle_message(umsg, wparam, lparam) == Forwarding::None {
+                if Rc::from_raw(self_).handle_message(umsg, wparam, lparam) {
                     return LRESULT(0);
                 }
             }
         }
 
-        unsafe { DefWindowProcA(hwnd, umsg, wparam, lparam) }
+        unsafe { DefWindowProcW(hwnd, umsg, wparam, lparam) }
     }
 }
