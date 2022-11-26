@@ -31,12 +31,16 @@ jobs:
         uses: actions/configure-pages@v2
         
       - name: Build Documentation
-        run: cargo doc --all --no-deps
+        run: cargo doc --lib --no-deps
+        
+      - name: Create index
+        run: |
+            '<meta http-equiv="refresh" content="0; url=win32">' | Out-File .\target\doc\index.html    
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
-          path: './target/docs/win32'
+          path: './target/doc'
           
       - name: Deploy to GitHub Pages
         id: deployment
