@@ -48,7 +48,7 @@
 //!
 //! Our window might close in one of two ways. The application might drop the
 //! rust window handle first, in which case we're responsible for destroying the
-//! resources on the win32 side.
+//! resources on the Win32 side.
 //!
 //! Alternatively, the user might close the window using native windows methods
 //! (window chrome close button, etc.) in which case the native Win32 side

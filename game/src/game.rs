@@ -45,8 +45,17 @@ impl Game {
 
     fn update(&mut self) {
         let len = self.window_title.len();
-        self.window_title
-            .extend(self.main_window.keyboard().drain_input_queue());
+
+        {
+            let mut kbd = self.main_window.keyboard();
+            let mut input = kbd.drain_input();
+            self.window_title.truncate(
+                self.window_title
+                    .len()
+                    .saturating_sub(input.num_backspaces()),
+            );
+            self.window_title.extend(input.chars());
+        }
 
         if self.window_title.len() != len {
             self.is_render_dirty = true;
@@ -57,6 +66,7 @@ impl Game {
         if !self.is_render_dirty {
             return;
         }
+
         self.main_window.set_title(&self.window_title).unwrap();
         self.is_render_dirty = false;
     }

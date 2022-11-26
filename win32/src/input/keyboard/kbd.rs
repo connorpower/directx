@@ -11,6 +11,34 @@ use super::{KeyCode, KeystrokeFlags};
 /// dropped.
 const INPUT_QUEUE_CAPACITY: usize = 32;
 
+const BACKSPACE: char = '\x08';
+
+/// An object which encapsulates the state of the input buffer.
+pub struct InputBuffer<I>
+where
+    I: ExactSizeIterator<Item = char>,
+{
+    chars: I,
+    n_backspaces: usize,
+}
+
+impl<I> InputBuffer<I>
+where
+    I: ExactSizeIterator<Item = char>,
+{
+    /// The number of backspaces which preceded any text in the [input] buffer
+    /// and should be removed from to any _previously_ drained input.
+    pub fn num_backspaces(&self) -> usize {
+        self.n_backspaces
+    }
+
+    /// The current input buffer. Any backspace events which happened within
+    /// the buffer have already been applied to the buffer contents.
+    pub fn chars(&mut self) -> &mut I {
+        &mut self.chars
+    }
+}
+
 /// A representation of a Win32 virtual key event. These are purely internal and
 /// are consumed by the `Keyboard` type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,6 +65,9 @@ pub struct Keyboard {
     /// A queue of printable input text which has been fully processed into
     /// valid unicode.
     input_queue: VecDeque<char>,
+    /// The number of pending backspace events which should be applied to any
+    /// previously retrieved text.
+    n_backspaces: usize,
     /// High surrogate entry from a surrogate pair. This is `Some` pending
     /// receipt of the following low surrogate. Once the low surrogate arrives,
     /// the pair can be converted into a character and appended to
@@ -49,6 +80,7 @@ impl Keyboard {
         Self {
             pressed: bitarr![usize, Lsb0; 0; 255],
             input_queue: VecDeque::with_capacity(INPUT_QUEUE_CAPACITY),
+            n_backspaces: 0,
             pending_surrogate: None,
         }
     }
@@ -72,7 +104,7 @@ impl Keyboard {
                         // Combine surrogates & append to input queue. If anything fails at this
                         // point we don't have a recourse for recovery so we take the unicode
                         // replacement character instead.
-                        self.input_queue.extend(
+                        self.process_char_input(
                             char::decode_utf16([high, low])
                                 .map(|r| r.unwrap_or(REPLACEMENT_CHARACTER)),
                         );
@@ -85,14 +117,8 @@ impl Keyboard {
                         // following low surrogate.
                         Err(err) => self.pending_surrogate = Some(err.unpaired_surrogate()),
                         // Happy-path for non-surrogate-pair unicode characters
-                        Ok(ch) => self.input_queue.push_back(ch),
+                        Ok(ch) => self.process_char_input([ch]),
                     },
-                }
-
-                // Trim queue to avoid growing continuously
-                while self.input_queue.len() >= INPUT_QUEUE_CAPACITY {
-                    let char = self.input_queue.pop_front().unwrap();
-                    trace!("Trimming keyboard input queue, dropped '{char}'.");
                 }
             }
         }
@@ -102,9 +128,16 @@ impl Keyboard {
         *self.bit_for_key(key).as_ref()
     }
 
-    /// Drains all accumulated characters in the input queue.
-    pub fn drain_input_queue(&mut self) -> impl ExactSizeIterator<Item = char> + '_ {
-        self.input_queue.drain(..)
+    /// Drains all accumulated characters in the input queue and clears any
+    /// pending backspace events.
+    pub fn drain_input(&mut self) -> InputBuffer<impl ExactSizeIterator<Item = char> + '_> {
+        let n_backspaces = self.n_backspaces;
+        self.n_backspaces = 0;
+
+        InputBuffer {
+            n_backspaces,
+            chars: self.input_queue.drain(..),
+        }
     }
 
     /// Reset all keyboard state.
@@ -112,6 +145,36 @@ impl Keyboard {
         self.input_queue.clear();
         self.pending_surrogate = None;
         self.pressed = BitArray::ZERO;
+    }
+
+    /// Handles character input and appends or modifies the input queue. The
+    /// char iterator could contain only a single char, multiple characters, and
+    /// could include control characters such as backspace or delete.
+    /// [process_char_input] will account for deletion events.
+    fn process_char_input<I>(&mut self, chars: I)
+    where
+        I: IntoIterator<Item = char>,
+    {
+        let chars = chars.into_iter();
+        for c in chars {
+            match c {
+                // TODO: detect delete
+                BACKSPACE => {
+                    if self.input_queue.pop_back().is_none() {
+                        self.n_backspaces += 1;
+                    }
+                }
+                // Drop any control characters that are not whitespace
+                _ if c.is_control() && !c.is_whitespace() => (),
+                _ => self.input_queue.push_back(c),
+            }
+        }
+
+        // Trim queue to avoid growing continuously
+        while self.input_queue.len() >= INPUT_QUEUE_CAPACITY {
+            let char = self.input_queue.pop_front().unwrap();
+            trace!("Trimming keyboard input queue, dropped '{char}'.");
+        }
     }
 
     fn bit_for_key(&self, key: KeyCode) -> impl AsRef<bool> + '_ {
@@ -134,6 +197,78 @@ mod tests {
         Foundation::{LPARAM, WPARAM},
         UI::WindowsAndMessaging::*,
     };
+
+    mod event_samples {
+        use super::*;
+
+        /// An event sampled from winproc messages.
+        /// .0 = winproc umsg
+        /// .1 = winproc WPARAM
+        /// .2 = winproc LPARAM
+        pub type EventSample = (u32, usize, isize);
+
+        /// Press and release "a" character.
+        pub const PRESS_RELEASE_A: &[EventSample] = &[
+            (WM_KEYDOWN, 0x41, 0x000001E0001),
+            (WM_CHAR, 0x61, 0x000001E0001),
+            (WM_KEYUP, 0x41, 0x000C01E0001),
+        ];
+
+        /// Press and release "b" character.
+        pub const PRESS_RELEASE_B: &[EventSample] = &[
+            (WM_KEYDOWN, 0x42, 0x00000300001),
+            (WM_CHAR, 0x62, 0x00000300001),
+            (WM_KEYUP, 0x42, 0x000C0300001),
+        ];
+
+        /// Press and release "c" character.
+        pub const PRESS_RELEASE_C: &[EventSample] = &[
+            (WM_KEYDOWN, 0x43, 0x000002E0001),
+            (WM_CHAR, 0x63, 0x000002E0001),
+            (WM_KEYUP, 0x43, 0x000C02E0001),
+        ];
+
+        /// Press and release "backspace" key.
+        pub const PRESS_RELEASE_BACKSPACE: &[EventSample] = &[
+            (WM_KEYDOWN, 0x8, 0x000000E0001),
+            (WM_CHAR, 0x8, 0x000000E0001),
+            (WM_KEYUP, 0x8, 0x000C00E0001),
+        ];
+
+        /// Text entry for 'ö' ('"' + 'o' combo on international keyboard).
+        pub const PRESS_RELEASE_INTERNATIONAL_UMLAUT: &[EventSample] = &[
+            (WM_KEYDOWN, 0x10, 0x002A0001),
+            (WM_KEYDOWN, 0xDE, 0x00280001),
+            (WM_DEADCHAR, 0x22, 0x00280001),
+            (WM_KEYUP, 0xDE, 0xC0280001),
+            (WM_KEYUP, 0x10, 0xC02A0001),
+            (WM_KEYDOWN, 0x4F, 0x00180001),
+            (WM_CHAR, 0xF6, 0x00180001),
+            (WM_KEYUP, 0x4F, 0xC0180001),
+        ];
+
+        /// Emoji input for 👌 using emoji keyboard ("win-.")
+        pub const EMOJI_INPUT_OK_HAND: &[EventSample] = &[
+            (WM_IME_REQUEST, 0x0006, 0x643E50BC90),
+            (WM_GETICON, 0x0000, 0x0000000078),
+            (WM_KEYDOWN, 0x005B, 0x00015B0001),
+            (WM_KEYUP, 0x00BE, 0x0080340001),
+            (WM_KEYUP, 0x005B, 0x00C15B0001),
+            (WM_IME_STARTCOMPOSITION, 0x0000, 0x0000000000),
+            (WM_IME_NOTIFY, 0x000F, 0x0020600A01),
+            (WM_IME_NOTIFY, 0x000F, 0x0020600A01),
+            (WM_IME_KEYLAST, 0xD83D, 0x0000000800),
+            (WM_IME_CHAR, 0xD83D, 0x0000000001),
+            (WM_IME_CHAR, 0xDC4C, 0x0000000001),
+            (WM_IME_NOTIFY, 0x010D, 0x0000000000),
+            (WM_IME_ENDCOMPOSITION, 0x0000, 0x0000000000),
+            (WM_IME_NOTIFY, 0x010E, 0x0000000000),
+            (WM_CHAR, 0xD83D, 0x0000000001),
+            (WM_CHAR, 0xDC4C, 0x0000000001),
+            (0xC052, 0x0001, 0x643E50D570), // Unknown message
+            (WM_IME_REQUEST, 0x0006, 0x643E50D570),
+        ];
+    }
 
     #[derive(PartialEq, Eq)]
     enum KeyRepeat {
@@ -233,7 +368,7 @@ mod tests {
         let mut kbd = Keyboard::new();
 
         // Test state before any events
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert!(
             input.is_empty(),
             "Queue should be empty before first input key event event"
@@ -248,10 +383,10 @@ mod tests {
         }
 
         // Confirm queue state after events have been processed
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(&input, "Hello, world!");
         assert!(
-            kbd.drain_input_queue().next().is_none(),
+            kbd.drain_input().chars().next().is_none(),
             "Queue should be empty after last call to drain"
         );
     }
@@ -274,7 +409,7 @@ mod tests {
             kbd.process_evt(evt);
         }
 
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(&input, "𝄞music");
     }
 
@@ -293,7 +428,7 @@ mod tests {
             wchar: 0xD834,
         });
         assert!(
-            kbd.drain_input_queue().next().is_none(),
+            kbd.drain_input().chars().next().is_none(),
             "Input queue should wait for following low surrogate before returning"
         );
 
@@ -302,7 +437,7 @@ mod tests {
             wchar: 0xDD1E,
         });
 
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(&input, "𝄞");
     }
 
@@ -324,7 +459,7 @@ mod tests {
             kbd.process_evt(evt);
         }
 
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(&input, "�m");
     }
 
@@ -349,11 +484,11 @@ mod tests {
         }
 
         // Confirm queue state after events have been processed
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(&input, "𝄞🌉𝄞🌉a𝄞b🌉c");
 
         assert!(
-            kbd.drain_input_queue().next().is_none(),
+            kbd.drain_input().chars().next().is_none(),
             "Queue should be empty after last call to drain"
         );
     }
@@ -376,12 +511,12 @@ mod tests {
         }
 
         // Confirm queue state after events have been processed
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(&input, "vwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
         assert_eq!(input.len(), INPUT_QUEUE_CAPACITY - 1);
 
         assert!(
-            kbd.drain_input_queue().next().is_none(),
+            kbd.drain_input().chars().next().is_none(),
             "Queue should be empty after last call to drain"
         );
     }
@@ -409,12 +544,12 @@ mod tests {
         }
 
         // Confirm queue state after events have been processed
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(&input, "🌉4𝄞🌉5𝄞🌉6𝄞🌉7𝄞🌉8𝄞🌉9𝄞🌉0𝄞🌉A𝄞🌉B𝄞🌉C𝄞🌉");
         assert_eq!(input.chars().count(), INPUT_QUEUE_CAPACITY - 1);
 
         assert!(
-            kbd.drain_input_queue().next().is_none(),
+            kbd.drain_input().chars().next().is_none(),
             "Queue should be empty after last call to drain"
         );
     }
@@ -427,22 +562,13 @@ mod tests {
         use super::super::Adapter;
         let mut kbd = Keyboard::new();
 
-        for (umsg, wparam, lparam) in [
-            (WM_KEYDOWN, 0x10, 0x002A0001),
-            (WM_KEYDOWN, 0xDE, 0x00280001),
-            (WM_DEADCHAR, 0x22, 0x00280001),
-            (WM_KEYUP, 0xDE, 0xC0280001),
-            (WM_KEYUP, 0x10, 0xC02A0001),
-            (WM_KEYDOWN, 0x4F, 0x00180001),
-            (WM_CHAR, 0xF6, 0x00180001),
-            (WM_KEYUP, 0x4F, 0xC0180001),
-        ] {
+        for &(umsg, wparam, lparam) in event_samples::PRESS_RELEASE_INTERNATIONAL_UMLAUT {
             if let Some(evt) = Adapter::adapt(umsg, WPARAM(wparam), LPARAM(lparam)) {
                 kbd.process_evt(evt);
             }
         }
 
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(input, "ö");
         for key_code in KeyCode::iter() {
             assert!(
@@ -460,33 +586,14 @@ mod tests {
         use super::super::Adapter;
         let mut kbd = Keyboard::new();
 
-        for (umsg, wparam, lparam) in [
-            (WM_IME_REQUEST, 0x0006, 0x643E50BC90),
-            (WM_GETICON, 0x0000, 0x0000000078),
-            (WM_KEYDOWN, 0x005B, 0x00015B0001),
-            (WM_KEYUP, 0x00BE, 0x0080340001),
-            (WM_KEYUP, 0x005B, 0x00C15B0001),
-            (WM_IME_STARTCOMPOSITION, 0x0000, 0x0000000000),
-            (WM_IME_NOTIFY, 0x000F, 0x0020600A01),
-            (WM_IME_NOTIFY, 0x000F, 0x0020600A01),
-            (WM_IME_KEYLAST, 0xD83D, 0x0000000800),
-            (WM_IME_CHAR, 0xD83D, 0x0000000001),
-            (WM_IME_CHAR, 0xDC4C, 0x0000000001),
-            (WM_IME_NOTIFY, 0x010D, 0x0000000000),
-            (WM_IME_ENDCOMPOSITION, 0x0000, 0x0000000000),
-            (WM_IME_NOTIFY, 0x010E, 0x0000000000),
-            (WM_CHAR, 0xD83D, 0x0000000001),
-            (WM_CHAR, 0xDC4C, 0x0000000001),
-            (0xC052, 0x0001, 0x643E50D570), // Unknown message
-            (WM_IME_REQUEST, 0x0006, 0x643E50D570),
-        ] {
+        for &(umsg, wparam, lparam) in event_samples::EMOJI_INPUT_OK_HAND {
             if let Some(evt) = Adapter::adapt(umsg, WPARAM(wparam), LPARAM(lparam)) {
                 println!("{evt:#?}");
                 kbd.process_evt(evt);
             }
         }
 
-        let input: String = kbd.drain_input_queue().collect();
+        let input: String = kbd.drain_input().chars().collect();
         assert_eq!(input, "👌");
         for key_code in KeyCode::iter() {
             assert!(
@@ -495,4 +602,36 @@ mod tests {
             );
         }
     }
+
+    /// Pressing backspace without any input in the queue should accumulate
+    /// pending delete backspace events that can be applied to previously
+    /// drained characters. If backspace is pressed while the input queue has
+    /// some input should result in pending input being removed.
+    #[test]
+    fn test_backspace_key() {
+        use super::super::Adapter;
+        let mut kbd = Keyboard::new();
+
+        for &(umsg, wparam, lparam) in [
+            event_samples::PRESS_RELEASE_BACKSPACE,
+            event_samples::PRESS_RELEASE_BACKSPACE,
+            event_samples::PRESS_RELEASE_A,
+            event_samples::PRESS_RELEASE_B,
+            event_samples::PRESS_RELEASE_BACKSPACE,
+            event_samples::PRESS_RELEASE_C,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if let Some(evt) = Adapter::adapt(umsg, WPARAM(wparam), LPARAM(lparam)) {
+                kbd.process_evt(evt);
+            }
+        }
+
+        let mut state = kbd.drain_input();
+        assert_eq!(state.num_backspaces(), 2);
+        let input: String = state.chars().collect();
+        assert_eq!(input, "ac");
+    }
+    // TODO: delete key
 }
