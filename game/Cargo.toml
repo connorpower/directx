@@ -15,6 +15,7 @@ stdio= []
 [dependencies]
 geom = { path = "../geom" }
 win32 = { path = "../win32" }
+d2d = { path = "../d2d" }
 
 thiserror = "1.0.37"
 maplit = "1.0.2"

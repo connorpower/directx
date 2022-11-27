@@ -47,7 +47,9 @@ name = "d2d"
 version = "0.1.0"
 dependencies = [
  "geom",
+ "paste",
  "pretty_assertions",
+ "win32",
  "windows",
 ]
 
