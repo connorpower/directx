@@ -1,10 +1,8 @@
 //! Top-level rust Window object which abstracts the underlying Win32 API.
 
-use crate::{
-    errors::*, geom::Dimension2D, input::keyboard::Keyboard, invoke::chk, types::*,
-    window::WindowInner,
-};
+use crate::{errors::*, input::keyboard::Keyboard, invoke::chk, types::*, window::WindowInner};
 
+use ::geom::d2::Dimension2D;
 use ::std::{ops::DerefMut, rc::Rc};
 use ::tracing::{debug, error};
 use ::widestring::U16CString;

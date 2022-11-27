@@ -1,4 +1,4 @@
-//! Utilities for interacting with Win32 API.
+//! Geometry primitives and functions for working with them.
 
 #![deny(rust_2018_idioms)]
 #![cfg_attr(
@@ -12,12 +12,4 @@
     )
 )]
 
-pub mod debug;
-pub mod errors;
-pub mod input;
-pub mod invoke;
-pub mod types;
-pub mod window;
-
-pub use errors::*;
-pub use types::*;
+pub mod d2;

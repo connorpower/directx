@@ -1,7 +1,8 @@
 use crate::resources::FERRIS_ICON;
 
+use ::geom::d2::Dimension2D;
 use ::tracing::info;
-use ::win32::{geom::Dimension2D, window::Window, *};
+use ::win32::{window::Window, *};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };

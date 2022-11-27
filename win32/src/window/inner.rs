@@ -1,12 +1,12 @@
 use crate::{
     errors::*,
-    geom::Dimension2D,
     input::keyboard::{Adapter as KbdAdapter, Keyboard},
     invoke::chk,
     types::*,
     window::WindowClass,
 };
 
+use ::geom::d2::Dimension2D;
 use ::parking_lot::RwLock;
 use ::std::{
     cell::Cell,

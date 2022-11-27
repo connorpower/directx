@@ -13,6 +13,7 @@ build = "build.rs"
 stdio= []
 
 [dependencies]
+geom = { path = "../geom" }
 win32 = { path = "../win32" }
 
 thiserror = "1.0.37"
