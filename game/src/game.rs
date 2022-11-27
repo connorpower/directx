@@ -1,6 +1,7 @@
 use crate::resources::FERRIS_ICON;
 
-use ::geom::d2::Dimension2D;
+use ::d2d::gfx::{target::RenderTarget, Color};
+use ::geom::d2::{Dimension2D, Point2D};
 use ::tracing::info;
 use ::win32::{window::Window, *};
 use ::windows::Win32::UI::WindowsAndMessaging::{
@@ -10,6 +11,8 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
 pub struct Game {
     main_window: Window,
     window_title: String,
+
+    render_target: RenderTarget,
 
     /// Dirty flag for changes that require rendering. If not dirty, we can skip
     /// rendering.
@@ -26,19 +29,20 @@ impl Game {
     pub fn new() -> Self {
         let window_title = "Main Window".to_string();
 
-        let main_window = Window::new(
-            Dimension2D {
-                width: 800,
-                height: 600,
-            },
-            &window_title,
-            Some(FERRIS_ICON.id().into()),
-        )
-        .expect("Failed to create main window");
+        let dimension = Dimension2D {
+            width: 800,
+            height: 600,
+        };
+        let main_window = Window::new(dimension, &window_title, Some(FERRIS_ICON.id().into()))
+            .expect("Failed to create main window");
+
+        let render_target = RenderTarget::new_with_hwnd(main_window.hwnd(), dimension)
+            .expect("Failed to create Direct2D render target");
 
         Self {
             main_window,
             window_title,
+            render_target,
             is_render_dirty: false,
             is_shutting_down: false,
         }
@@ -67,6 +71,10 @@ impl Game {
         if !self.is_render_dirty {
             return;
         }
+
+        let ctx = self.render_target.make_context();
+        ctx.clear(Color::blue());
+        ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, Color::red());
 
         self.main_window.set_title(&self.window_title).unwrap();
         self.is_render_dirty = false;
