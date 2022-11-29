@@ -1,4 +1,4 @@
-use ::geom::d2::Dimension2D;
+use ::geom::d2::Size2D;
 use ::win32::{
     invoke::{check_res, chk},
     Result,
@@ -21,7 +21,7 @@ pub struct RenderTarget {
 }
 
 impl RenderTarget {
-    pub fn new_with_hwnd(hwnd: HWND, dimension: Dimension2D<i32>) -> Result<Self> {
+    pub fn new_with_hwnd(hwnd: HWND, size: Size2D<i32>) -> Result<Self> {
         // TODO: info-level tracing calls
 
         let options = D2D1_FACTORY_OPTIONS {
@@ -38,10 +38,7 @@ impl RenderTarget {
         let render_props = D2D1_RENDER_TARGET_PROPERTIES::default();
         let hwnd_target_props = D2D1_HWND_RENDER_TARGET_PROPERTIES {
             hwnd,
-            pixelSize: dimension
-                .map::<u32>()
-                .expect("Window dimension not representable by u32")
-                .into(),
+            pixelSize: size.cast::<u32>().into(),
             ..Default::default()
         };
 

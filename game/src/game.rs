@@ -1,7 +1,7 @@
 use crate::resources::FERRIS_ICON;
 
 use ::d2d::gfx::{target::RenderTarget, Color};
-use ::geom::d2::{Dimension2D, Point2D};
+use ::geom::d2::{Point2D, Size2D};
 use ::tracing::info;
 use ::win32::{window::Window, *};
 use ::windows::Win32::UI::WindowsAndMessaging::{
@@ -29,7 +29,7 @@ impl Game {
     pub fn new() -> Self {
         let window_title = "Main Window".to_string();
 
-        let dimension = Dimension2D {
+        let dimension = Size2D {
             width: 800,
             height: 600,
         };

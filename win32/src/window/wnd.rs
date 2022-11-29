@@ -2,7 +2,7 @@
 
 use crate::{errors::*, input::keyboard::Keyboard, invoke::chk, types::*, window::WindowInner};
 
-use ::geom::d2::Dimension2D;
+use ::geom::d2::Size2D;
 use ::std::{ops::DerefMut, rc::Rc};
 use ::tracing::{debug, error};
 use ::widestring::U16CString;
@@ -23,19 +23,15 @@ pub struct Window {
 
 impl Window {
     /// Construct and display a new window.
-    pub fn new(
-        dimension: Dimension2D<i32>,
-        title: &str,
-        icon_id: Option<ResourceId>,
-    ) -> Result<Self> {
+    pub fn new(size: Size2D<i32>, title: &str, icon_id: Option<ResourceId>) -> Result<Self> {
         debug!(wnd_title = %title, "Creating window");
-        WindowInner::new(dimension, title, icon_id).map(|inner| Self { inner })
+        WindowInner::new(size, title, icon_id).map(|inner| Self { inner })
     }
 
-    /// The dimensions of the client area of our Win32 window. The window chrome
-    /// is in addition to this dimension.
-    pub fn dimension(&self) -> Dimension2D<i32> {
-        self.inner.dimension()
+    /// The size of the client area of our Win32 window. The window chrome
+    /// is in addition to this size.
+    pub fn size(&self) -> Size2D<i32> {
+        self.inner.size()
     }
 
     /// Get a handle to the Win32 window's handle. This is often required when

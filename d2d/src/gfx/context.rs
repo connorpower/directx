@@ -1,11 +1,11 @@
 //! Graphics context which is used for all concrete drawing operations within a
 //! draw cycle.
 
-use ::geom::d2::Point2D;
+use ::geom::d2::{Point2D, Rect2D, Size2D};
 use ::win32::invoke::check_res;
 use ::windows::{
     Foundation::Numerics::Matrix3x2,
-    Win32::Graphics::Direct2D::{Common::D2D_RECT_F, ID2D1HwndRenderTarget, D2D1_BRUSH_PROPERTIES},
+    Win32::Graphics::Direct2D::{ID2D1HwndRenderTarget, D2D1_BRUSH_PROPERTIES},
 };
 
 use super::{color::Color, target::RenderTarget};
@@ -36,7 +36,7 @@ impl<'t> Context<'t> {
         ctx
     }
 
-    /// Clears the entire screen, setting the color to `color`.
+    /// Clears the entire screen by filling with `color`.
     pub fn clear(&self, color: Color) {
         unsafe {
             self.tgt().Clear(Some(color.as_d2d1_color()));
@@ -45,7 +45,7 @@ impl<'t> Context<'t> {
 
     /// TEMP/HACK
     /// Put a single pixel to the screen of `color` at `coord`.
-    pub fn put_pixel(&self, coord: Point2D<f32>, color: Color) {
+    pub fn put_pixel(&self, origin: Point2D<f32>, color: Color) {
         // TODO: cache brushes
 
         let brush_props = D2D1_BRUSH_PROPERTIES {
@@ -61,14 +61,9 @@ impl<'t> Context<'t> {
         )
         .expect("failed to create brush for put_pixel");
 
-        let rect = D2D_RECT_F {
-            left: coord.x,
-            top: coord.y,
-            right: coord.x + 1.0,
-            bottom: coord.y + 1.0,
-        };
+        let rect = Rect2D::from_size_with_origin(Size2D::zero(), origin);
         unsafe {
-            self.tgt().FillRectangle(&rect as _, &brush);
+            self.tgt().FillRectangle(rect.into(), &brush);
         }
     }
 

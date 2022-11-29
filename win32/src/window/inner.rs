@@ -6,7 +6,7 @@ use crate::{
     window::WindowClass,
 };
 
-use ::geom::d2::Dimension2D;
+use ::geom::d2::{Point2D, Rect2D, Size2D};
 use ::parking_lot::RwLock;
 use ::std::{
     cell::Cell,
@@ -41,8 +41,8 @@ pub(super) struct WindowInner {
     /// A handle to our corresponding Win32 window. If zero, the window has been
     /// destroyed on the Win32 size.
     hwnd: Cell<isize>,
-    /// Fixed dimensions for our window.
-    dimension: Dimension2D<i32>,
+    /// Fixed size for our window's client area.
+    size: Size2D<i32>,
     /// The Window's title, as it appears in the Windows title bar.
     title: String,
     /// Stores an outstanding close request from the Win32 side. This must
@@ -56,7 +56,7 @@ pub(super) struct WindowInner {
 impl WindowInner {
     /// Construct and display a new window.
     pub(super) fn new(
-        dimension: Dimension2D<i32>,
+        size: Size2D<i32>,
         title: &str,
         icon_id: Option<ResourceId>,
     ) -> Result<Rc<Self>> {
@@ -66,14 +66,14 @@ impl WindowInner {
             title: title.to_string(),
             window_class: WindowClass::get_or_create("MainWindow", icon_id, Self::wnd_proc_setup)?,
             hwnd: Default::default(),
-            dimension,
+            size,
             close_request: AtomicBool::new(false),
             keyboard: RwLock::new(Keyboard::new()),
         });
 
         let hwnd = {
             let module = chk!(res; GetModuleHandleW(None))?;
-            let mut rect = dimension.into();
+            let mut rect = Rect2D::from_size_with_origin(size, Point2D::default()).into();
             chk!(bool; AdjustWindowRectEx(
                 &mut rect,
                 WS_OVERLAPPEDWINDOW,
@@ -106,10 +106,10 @@ impl WindowInner {
         Ok(this)
     }
 
-    /// The dimensions of the client area of our Win32 window. The window chrome
-    /// is in addition to this dimension.
-    pub(super) const fn dimension(&self) -> Dimension2D<i32> {
-        self.dimension
+    /// The size of the client area of our Win32 window. The window chrome
+    /// is in addition to this siz3.
+    pub(super) const fn size(&self) -> Size2D<i32> {
+        self.size
     }
 
     pub(super) fn title(&self) -> &str {
