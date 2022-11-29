@@ -1,8 +1,8 @@
-use ::geom::d2::Size2D;
 use ::win32::{
     invoke::{check_res, chk},
     Result,
 };
+use ::win_geom::d2::Size2D;
 use ::windows::Win32::{
     Foundation::HWND,
     Graphics::Direct2D::{

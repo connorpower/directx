@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Connor Power <connor@connorpower.com>"]
 
 [dependencies]
-geom = { path = "../geom", features = ["d2d"] }
+win-geom = { path = "../win-geom", features = ["d2d"] }
 paste = "1.0.9"
 win32 = { path = "../win32" }
 

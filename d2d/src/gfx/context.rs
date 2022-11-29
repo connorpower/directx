@@ -1,8 +1,8 @@
 //! Graphics context which is used for all concrete drawing operations within a
 //! draw cycle.
 
-use ::geom::d2::{Point2D, Rect2D, Size2D};
 use ::win32::invoke::check_res;
+use ::win_geom::d2::{Point2D, Rect2D, Size2D};
 use ::windows::{
     Foundation::Numerics::Matrix3x2,
     Win32::Graphics::Direct2D::{ID2D1HwndRenderTarget, D2D1_BRUSH_PROPERTIES},

@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Connor Power <connor@connorpower.com>"]
 
 [dependencies]
-geom = { path = "../geom", features = ["win32"] }
+win-geom = { path = "../win-geom", features = ["win32"] }
 
 bitvec = "1.0.1"
 deku = "0.15"

@@ -6,7 +6,6 @@ use crate::{
     window::WindowClass,
 };
 
-use ::geom::d2::{Point2D, Rect2D, Size2D};
 use ::parking_lot::RwLock;
 use ::std::{
     cell::Cell,
@@ -19,6 +18,7 @@ use ::std::{
 };
 use ::tracing::debug;
 use ::widestring::U16CString;
+use ::win_geom::d2::{Point2D, Rect2D, Size2D};
 use ::windows::{
     core::PCWSTR,
     Win32::{

@@ -2,10 +2,10 @@
 
 use crate::{errors::*, input::keyboard::Keyboard, invoke::chk, types::*, window::WindowInner};
 
-use ::geom::d2::Size2D;
 use ::std::{ops::DerefMut, rc::Rc};
 use ::tracing::{debug, error};
 use ::widestring::U16CString;
+use ::win_geom::d2::Size2D;
 use ::windows::{
     core::PCWSTR,
     Win32::{Foundation::HWND, UI::WindowsAndMessaging::SetWindowTextW},

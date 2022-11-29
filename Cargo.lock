@@ -46,9 +46,9 @@ dependencies = [
 name = "d2d"
 version = "0.1.0"
 dependencies = [
- "geom",
  "paste",
  "pretty_assertions",
+ "win-geom",
  "win32",
  "windows",
 ]
@@ -134,7 +134,6 @@ name = "game"
 version = "0.1.0"
 dependencies = [
  "d2d",
- "geom",
  "maplit",
  "parking_lot",
  "paste",
@@ -142,18 +141,10 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "win-geom",
  "win32",
  "windows",
  "winres",
-]
-
-[[package]]
-name = "geom"
-version = "0.1.0"
-dependencies = [
- "num-traits",
- "pretty_assertions",
- "windows",
 ]
 
 [[package]]
@@ -608,12 +599,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
 
 [[package]]
+name = "win-geom"
+version = "0.1.0"
+dependencies = [
+ "num-traits",
+ "pretty_assertions",
+ "windows",
+]
+
+[[package]]
 name = "win32"
 version = "0.1.0"
 dependencies = [
  "bitvec",
  "deku",
- "geom",
  "lazy_static",
  "maplit",
  "parking_lot",
@@ -624,6 +623,7 @@ dependencies = [
  "tokio",
  "tracing",
  "widestring",
+ "win-geom",
  "windows",
 ]
 
