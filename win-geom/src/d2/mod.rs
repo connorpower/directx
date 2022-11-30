@@ -177,12 +177,6 @@ mod win32 {
             unsafe { ::std::mem::transmute(val) }
         }
     }
-
-    impl From<Rect2D<i32>> for *const RECT {
-        fn from(val: Rect2D<i32>) -> Self {
-            &val.into() as _
-        }
-    }
 }
 
 #[cfg(feature = "d2d")]
@@ -199,24 +193,12 @@ mod d2d {
         }
     }
 
-    impl From<Size2D<u32>> for *const D2D_SIZE_U {
-        fn from(val: Size2D<u32>) -> Self {
-            &val.into() as _
-        }
-    }
-
     impl From<Rect2D<f32>> for D2D_RECT_F {
         fn from(val: Rect2D<f32>) -> Self {
             // SAFETY: our `Rect2D` is modelled on the same memory layout as the
             // Direct2D `D2D_RECT_F` and we restrict this conversion
             // implementation to rectangles with `f32` representations.
             unsafe { ::std::mem::transmute(val) }
-        }
-    }
-
-    impl From<Rect2D<f32>> for *const D2D_RECT_F {
-        fn from(val: Rect2D<f32>) -> Self {
-            &val.into() as _
         }
     }
 }

@@ -63,7 +63,7 @@ impl<'t> Context<'t> {
 
         let rect = Rect2D::from_size_with_origin(Size2D::pixel(), origin);
         unsafe {
-            self.tgt().FillRectangle(rect.into(), &brush);
+            self.tgt().FillRectangle(&rect.into() as _, &brush);
         }
     }
 
