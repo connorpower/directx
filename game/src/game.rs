@@ -1,6 +1,6 @@
 use crate::resources::FERRIS_ICON;
 
-use ::d2d::gfx::{target::RenderTarget, Color};
+use ::d2d::{Color, RenderTarget};
 use ::tracing::info;
 use ::win32::{window::Window, *};
 use ::win_geom::d2::{Point2D, Size2D};
