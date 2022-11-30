@@ -80,7 +80,7 @@ impl Game {
         self.is_render_dirty = false;
     }
 
-    pub async fn run(&mut self) -> Result<()> {
+    pub fn run(&mut self) -> Result<()> {
         let mut msg = MSG::default();
         while unsafe { GetMessageW(&mut msg, None, 0, 0) }.as_bool() {
             unsafe { TranslateMessage(&msg) };

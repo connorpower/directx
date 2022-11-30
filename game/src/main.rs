@@ -10,8 +10,7 @@ mod trace;
 use crate::game::Game;
 use ::tracing::{error, info};
 
-#[::tokio::main]
-pub async fn main() {
+pub fn main() {
     trace::configure();
 
     info!(
@@ -20,7 +19,7 @@ pub async fn main() {
         "Starting"
     );
 
-    if let Err(e) = Game::new().run().await {
+    if let Err(e) = Game::new().run() {
         error!(error = %e);
     }
 
