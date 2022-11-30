@@ -73,7 +73,7 @@ impl WindowInner {
 
         let hwnd = {
             let module = chk!(res; GetModuleHandleW(None))?;
-            let mut rect = Rect2D::from_size_with_origin(size, Point2D::default()).into();
+            let mut rect = Rect2D::from_size_and_origin(size, Point2D::default()).into();
             chk!(bool; AdjustWindowRectEx(
                 &mut rect,
                 WS_OVERLAPPEDWINDOW,
