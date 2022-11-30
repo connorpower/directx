@@ -61,7 +61,7 @@ impl<'t> Context<'t> {
         )
         .expect("failed to create brush for put_pixel");
 
-        let rect = Rect2D::from_size_with_origin(Size2D::zero(), origin);
+        let rect = Rect2D::from_size_with_origin(Size2D::pixel(), origin);
         unsafe {
             self.tgt().FillRectangle(rect.into(), &brush);
         }

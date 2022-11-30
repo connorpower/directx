@@ -71,6 +71,13 @@ where
     pub fn zero() -> Self {
         Self::default()
     }
+
+    pub fn pixel() -> Self {
+        Self {
+            width: T::one(),
+            height: T::one(),
+        }
+    }
 }
 
 impl<T> Size2D<T>
