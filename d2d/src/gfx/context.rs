@@ -39,7 +39,7 @@ impl<'t> Context<'t> {
     /// Clears the entire screen by filling with `color`.
     pub fn clear(&self, color: Color) {
         unsafe {
-            self.tgt().Clear(Some(color.as_d2d1_color()));
+            self.tgt().Clear(Some(&color.into() as _));
         }
     }
 
@@ -55,7 +55,7 @@ impl<'t> Context<'t> {
         let brush = check_res(
             || unsafe {
                 self.tgt()
-                    .CreateSolidColorBrush(color.as_d2d1_color(), Some(&brush_props as _))
+                    .CreateSolidColorBrush(&color.into() as _, Some(&brush_props as _))
             },
             "CreateSolidColorBrush",
         )

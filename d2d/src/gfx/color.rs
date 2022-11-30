@@ -2,6 +2,8 @@ use windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
 
 /// Color representation in RGBA format.
 ///
+/// # Conversion
+///
 /// Can be converted to/from DirectX `D3DCOLORVALUE` types or Direct2D
 /// `D2D1_COLOR_F` or `D2D_COLOR_F` types.
 #[repr(C)]
@@ -83,21 +85,12 @@ impl Color {
             alpha: a,
         }
     }
-
-    /// Returns a raw pointer to this color as though it were a `D2D1_COLOR_F`.
-    /// This is possible as `Color`s are memory compatible with `D2D1_COLOR_F`.
-    pub const fn as_d2d1_color(&self) -> *const D2D1_COLOR_F {
-        unsafe { ::std::mem::transmute::<*const Color, _>(self as _) }
-    }
 }
 
 impl From<Color> for D2D1_COLOR_F {
     fn from(c: Color) -> Self {
-        Self {
-            r: c.red,
-            g: c.green,
-            b: c.blue,
-            a: c.alpha,
-        }
+        // SAFETY: `D2D1_COLOR_F` and `Color` share the same memory
+        // representation.
+        unsafe { ::std::mem::transmute::<_, _>(c) }
     }
 }
