@@ -46,8 +46,8 @@ impl<T> Point2D<T>
 where
     T: Num + Clone + Copy + Debug + Default,
 {
-    /// Creates a new [Point2D] with `{x: 0, y: 0}` in whichever numeric type is
-    /// specified by `T`.
+    /// Creates a new [`Point2D`] with `{x: 0, y: 0}` in whichever numeric type
+    /// is specified by `T`.
     ///
     /// # Example
     ///
@@ -98,8 +98,8 @@ impl<T> Size2D<T>
 where
     T: Num + Clone + Copy + Debug,
 {
-    /// Creates a new [Size2D] with `{width: 0, height: 0}` in whichever numeric
-    /// type is specified by `T`.
+    /// Creates a new [`Size2D`] with `{width: 0, height: 0}` in whichever
+    /// numeric type is specified by `T`.
     ///
     /// # Example
     ///
@@ -115,6 +115,19 @@ where
         Self::default()
     }
 
+    /// Creates a new [`Size2D`] with `{x: 1, y: 1}` in whichever numeric type
+    /// is specified by `T`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::Size2D;
+    ///
+    /// let pixel = Size2D::<f32>::pixel();
+    ///
+    /// assert_eq!(pixel.width, 1.0);
+    /// assert_eq!(pixel.height, 1.0);
+    /// ```
     pub fn pixel() -> Self {
         Self {
             width: T::one(),
@@ -127,6 +140,24 @@ impl<T> Size2D<T>
 where
     T: Num + Clone + Copy + Debug,
 {
+    /// A generic interface which casts a [`Size2D`] from numeric representation
+    /// into another. The cast will never fail but may cause narrowing or
+    /// precision loss. The underlying cast operates the same as the `as`
+    /// keyword.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::{Rect2D, Size2D, Point2D};
+    ///
+    /// let size = Size2D { width: 10.3_f32, height: 10.8 };
+    ///
+    /// // Convert our float size into an integer size compatible with the
+    /// // Win32 `RECT` class.
+    /// let uint_size = size.cast::<u32>();
+    ///
+    /// assert_eq!(uint_size.width, 10);
+    /// ```
     pub fn cast<U>(self) -> Size2D<U>
     where
         T: AsPrimitive<U>,
@@ -182,7 +213,7 @@ impl<T> Rect2D<T>
 where
     T: Num + Clone + Copy + Debug,
 {
-    /// Creates a new [Rect2D] with zero area in whichever numeric
+    /// Creates a new [`Rect2D`] with zero area in whichever numeric
     /// type is specified by `T`.
     ///
     /// # Example
@@ -206,8 +237,8 @@ impl<T> Rect2D<T>
 where
     T: Num + Clone + Copy + Debug,
 {
-    /// Constructs a [Rect2D] with a given [Size2D], anchored with the origin
-    /// (top-left corner) rooted at `origin`.
+    /// Constructs a [`Rect2D`] with a given [`Size2D`], anchored with the
+    /// origin (top-left corner) rooted at `origin`.
     ///
     /// # Example
     ///
@@ -242,7 +273,7 @@ where
         }
     }
 
-    /// A generic interface which casts a [Rect2D] from numeric representation
+    /// A generic interface which casts a [`Rect2D`] from numeric representation
     /// into another. The cast will never fail but may cause narrowing or
     /// precision loss. The underlying cast operates the same as the `as`
     /// keyword.
