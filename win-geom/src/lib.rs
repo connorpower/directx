@@ -10,6 +10,8 @@
 //! converted into a Win32 structures.
 
 #![deny(rust_2018_idioms)]
+#![warn(missing_docs)]
+#![warn(rustdoc::missing_crate_level_docs)]
 #![cfg_attr(
     doc,
     warn(
