@@ -48,6 +48,7 @@ version = "0.1.0"
 dependencies = [
  "paste",
  "pretty_assertions",
+ "tracing",
  "win-geom",
  "win32",
  "windows",

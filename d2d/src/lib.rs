@@ -17,8 +17,10 @@
 
 mod color;
 mod context;
+mod factory;
 mod target;
 
 pub use color::*;
 pub use context::*;
+pub use factory::*;
 pub use target::*;

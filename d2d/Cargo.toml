@@ -6,7 +6,9 @@ authors = ["Connor Power <connor@connorpower.com>"]
 
 [dependencies]
 win-geom = { path = "../win-geom", features = ["d2d"] }
+
 paste = "1.0.9"
+tracing = "0.1.37"
 win32 = { path = "../win32" }
 
 [dependencies.windows]
