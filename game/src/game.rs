@@ -2,7 +2,7 @@ use crate::resources::FERRIS_ICON;
 
 use ::d2d::{Color, RenderTarget};
 use ::tracing::info;
-use ::win32::{window::Window, *};
+use ::win32::{errors::Result, window::Window};
 use ::win_geom::d2::{Point2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,

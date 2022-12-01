@@ -1,6 +1,6 @@
 use ::win32::{
+    errors::Result,
     invoke::{check_res, chk},
-    Result,
 };
 use ::win_geom::d2::Size2D;
 use ::windows::Win32::{
