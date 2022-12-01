@@ -18,7 +18,7 @@ pub use d2d::*;
 pub use win32::*;
 
 /// 2D point representation, compatible with any numeric representation.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct Point2D<T>
 where
@@ -70,7 +70,7 @@ where
 ///
 /// If _feature_ `"d2d"` is enabled, then a [`Size2D<u32>`] can be directly
 /// converted into a Direct2D `D2D_SIZE_U` struct.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct Size2D<T>
 where
@@ -179,7 +179,7 @@ where
 ///
 /// If _feature_ `"win32"` is enabled, then a [`Rect2D<u32>`] can be directly
 /// converted into a Win32 `RECT` struct.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct Rect2D<T>
 where
