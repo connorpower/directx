@@ -1,11 +1,13 @@
-use windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
+use ::windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
 
 /// Color representation in RGBA format.
 ///
 /// # Conversion
 ///
 /// Can be converted to/from DirectX `D3DCOLORVALUE` types or Direct2D
-/// `D2D1_COLOR_F` or `D2D_COLOR_F` types.
+/// [`D2D1_COLOR_F`] or [`D2D_COLOR_F`] types.
+///
+/// [`D2D_COLOR_F`]: ::windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Color {
