@@ -4,7 +4,7 @@ use crate::errors::*;
 
 use ::std::num::{NonZeroIsize, NonZeroU16};
 use ::windows::{
-    core::Result as Win32Result,
+    core::{Result as Win32Result, PCSTR, PCWSTR, PSTR, PWSTR},
     Win32::Foundation::{GetLastError, SetLastError, BOOL, HWND, WIN32_ERROR},
 };
 
@@ -126,19 +126,39 @@ where
 {
     let ptr = f();
 
-    if ptr.is_invalid() {
+    if ptr.is_null() {
         Err(get_last_err(f_name))
     } else {
         Ok(ptr)
     }
 }
 
+/// A common trait implemented for Win32 pointer types.
 pub trait Win32Pointer {
-    fn is_invalid(&self) -> bool;
+    /// Predicate method which indicates whether the pointer should be
+    /// considered a null pointer.
+    fn is_null(&self) -> bool;
 }
 
-impl Win32Pointer for HWND {
-    fn is_invalid(&self) -> bool {
-        self.0 == 0
-    }
+macro_rules! impl_win32_ptr {
+    ($type:ty; wrapped_is_null) => {
+        impl Win32Pointer for $type {
+            fn is_null(&self) -> bool {
+                self.0.is_null()
+            }
+        }
+    };
+    ($type:ty; int_val) => {
+        impl Win32Pointer for $type {
+            fn is_null(&self) -> bool {
+                self.0 == 0 as _
+            }
+        }
+    };
 }
+
+impl_win32_ptr!(HWND; int_val);
+impl_win32_ptr!(PSTR; wrapped_is_null);
+impl_win32_ptr!(PWSTR; wrapped_is_null);
+impl_win32_ptr!(PCSTR; wrapped_is_null);
+impl_win32_ptr!(PCWSTR; wrapped_is_null);
