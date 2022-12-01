@@ -32,7 +32,7 @@ where
 
 impl<T> Default for Point2D<T>
 where
-    T: Num + Clone + Copy + Debug + Default,
+    T: Num + Clone + Copy + Debug,
 {
     fn default() -> Self {
         Self {
@@ -44,7 +44,7 @@ where
 
 impl<T> Point2D<T>
 where
-    T: Num + Clone + Copy + Debug + Default,
+    T: Num + Clone + Copy + Debug,
 {
     /// Creates a new [`Point2D`] with `{x: 0, y: 0}` in whichever numeric type
     /// is specified by `T`.
