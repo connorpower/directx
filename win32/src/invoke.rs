@@ -108,9 +108,9 @@ pub fn check_res<F, V>(f: F, f_name: &'static str) -> Result<V>
 where
     F: FnOnce() -> Win32Result<V>,
 {
-    f().map_err(|e| Error::Unexpected {
+    f().map_err(|context| Error::Unexpected {
         function: f_name,
-        context: e.into(),
+        context,
     })
 }
 
