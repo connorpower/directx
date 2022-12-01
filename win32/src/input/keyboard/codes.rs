@@ -350,6 +350,8 @@ pub enum KeyCode {
 }
 
 impl KeyCode {
+    /// Returns the value of a [`KeyCode`] as a `u8` virtual keycode (as defined
+    /// in the Microsoft headers).
     pub const fn value(&self) -> u8 {
         *self as u8
     }
