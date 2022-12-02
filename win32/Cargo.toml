@@ -28,6 +28,7 @@ features = [
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_Graphics_Gdi",
     "Win32_System_Memory",
+    "Win32_System_Com",
 ]
 
 [dev-dependencies]
