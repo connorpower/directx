@@ -9,8 +9,11 @@ mod trace;
 
 use crate::game::Game;
 use ::tracing::{error, info};
+use ::win32::proc;
 
 pub fn main() {
+    proc::enable_heap_protection();
+
     trace::configure();
 
     info!(
