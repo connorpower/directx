@@ -1,41 +1,146 @@
-use crate::context::Context;
-use ::std::{cell::UnsafeCell, marker::PhantomData};
-use ::windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
+use crate::{context::Context, factory::D2DFactory};
+use ::std::rc::Rc;
+use ::win32::invoke::check_res;
+use ::win_geom::d2::Size2D;
+use ::windows::Win32::{
+    Foundation::{D2DERR_RECREATE_TARGET, HWND},
+    Graphics::Direct2D::ID2D1HwndRenderTarget,
+};
 
-/// A [`RenderTarget`]
 pub struct RenderTarget {
-    // TODO: abstract HWND or DXGISurfaceTarget behind common trait
-    inner: ID2D1HwndRenderTarget,
-
-    /// Force !Send & !Sync, as our `render_target` can only be used by the
-    /// thread on which it was created.
-    phantom: PhantomData<UnsafeCell<()>>,
+    /// State pattern object helps manage the two states we might find ourselves
+    /// in:
+    ///
+    /// * Target created and device specific resources usable
+    /// * Target requires re-creation due to hardware device loss or error.
+    state: State,
 }
 
-// Crate-internal interface.
-impl RenderTarget {
-    /// Crate-internal constructor, called by the [`Factory`](super::Factory).
-    pub(crate) fn new(inner: ID2D1HwndRenderTarget) -> Self {
-        Self {
-            phantom: Default::default(),
-            inner,
-        }
-    }
-
-    /// Returns a crate-internal reference to the underlying Direct2D render
-    /// target.
-    pub(crate) fn target(&self) -> &ID2D1HwndRenderTarget {
-        &self.inner
-    }
-}
-
-// Public interface.
 impl RenderTarget {
     /// Make a new drawing [Context] for drawing the next frame. `BeginDraw` and
     /// `EndDraw` will be automatically called and tied to the lifetime of the
     /// `Context`. Drawing can _only_ be achieved via a [Context]. A new
     /// [Context] should be created for each frame.
-    pub fn make_context(&mut self) -> Context<'_> {
-        Context::new(self)
+    pub fn begin_draw(&mut self) -> Context {
+        let state = ::std::mem::replace(&mut self.state, State::Poisoned);
+        let (new_state, device_target) = state.begin_draw();
+        self.state = new_state;
+
+        unsafe {
+            device_target.BeginDraw();
+        }
+
+        Context::new(device_target)
+    }
+
+    pub fn end_draw(&mut self, ctx: Context) {
+        let device_target = ctx.into_inner();
+        let must_recreate =
+            match check_res(|| unsafe { device_target.EndDraw(None, None) }, "EndDraw") {
+                Err(e) if e.code() == Some(D2DERR_RECREATE_TARGET) => true,
+                Err(e) => panic!("Unexpected error in Direct2D EndDraw(): {e}"),
+                Ok(_) => false,
+            };
+
+        self.state = ::std::mem::replace(&mut self.state, State::Poisoned)
+            .end_draw(must_recreate, device_target);
+    }
+
+    /// Crate-internal constructor, called by the [`Factory`](super::Factory).
+    pub(crate) fn new(factory: &Rc<D2DFactory>, hwnd: HWND, size: Size2D<i32>) -> Self {
+        Self {
+            state: State::RequiresRecreation {
+                inner: Inner {
+                    factory: factory.clone(),
+                    hwnd,
+                    size,
+                },
+            },
+        }
+    }
+}
+
+/// Inner components which are common to all states of our state pattern render
+/// target.
+struct Inner {
+    /// The factory which created this [`RenderTarget`]. A reference is kept
+    /// so that the [`RenderTarget`] can be automatically re-created from
+    /// within if DirectX reports a `D2DERR_RECREATE_TARGET` error and
+    /// requires device-specific resources to be recreated.
+    factory: Rc<D2DFactory>,
+
+    /// A win32 Window handle that which our render target will draw into.
+    // TODO: This should be a `&'window HWND` or similar, or the render target
+    // should be a _property_ of the window to ensure object lifetimes are bound
+    // together safely.
+    hwnd: HWND,
+
+    /// Size of both the window and the render target.
+    size: Size2D<i32>,
+}
+
+/// The internal state of our render target, encapsulated as a state pattern.
+enum State {
+    /// Device-specific resources have been recreated and are usable.
+    Created {
+        inner: Inner,
+        // TODO: abstract HWND or DXGISurfaceTarget behind common trait
+        target: ID2D1HwndRenderTarget,
+    },
+    /// The target is currently in a `BeginDraw` call and has given the
+    /// underlying `ID2D1HwndRendererTarget` out to to a [`Context`];
+    Drawing { inner: Inner },
+    /// Device-specific resources require (re-)creation. This is true for the
+    /// first interaction and following any `D2DERR_RECREATE_TARGET` errors
+    /// received due to device errors.
+    RequiresRecreation { inner: Inner },
+    /// Poisoned state. An error occurred mid-transition and this type is no
+    /// longer usable.
+    Poisoned,
+}
+
+impl State {
+    /// Transitions to the drawing state and returns (or recreates) the device
+    /// render target.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called while already in the [`Self::Drawing`] state.
+    fn begin_draw(self) -> (Self, ID2D1HwndRenderTarget) {
+        match self {
+            Self::Poisoned => panic!("Render target state poisoned"),
+            Self::Drawing { .. } => panic!("Render target should not be re-created mid-draw"),
+            Self::Created { target, inner } => (Self::Drawing { inner }, target),
+            Self::RequiresRecreation { inner } => {
+                let target = inner
+                    .factory
+                    .make_device_render_target(inner.hwnd, inner.size)
+                    .expect("Failed to create device resources for Direct2D render target");
+
+                // Recurse
+                Self::Created { inner, target }.begin_draw()
+            }
+        }
+    }
+
+    /// Ends a drawing cycle, transitioning from either [`Self::Drawing`] to
+    /// [`Self::RequiresRecreation`] depending on the value of `must_recreate`.
+    fn end_draw(self, must_recreate: bool, target: ID2D1HwndRenderTarget) -> Self {
+        match self {
+            Self::Poisoned => panic!("Render target state poisoned"),
+            Self::Created { .. } => {
+                panic!("Render target cannot transition from Drawing to Created")
+            }
+            Self::RequiresRecreation { .. } => {
+                panic!("Render target cannot transition from Drawing to RequiresCreation")
+            }
+            Self::Drawing { inner } => {
+                if must_recreate {
+                    Self::RequiresRecreation { inner }
+                } else {
+                    Self::Created { inner, target }
+                }
+            }
+        }
     }
 }

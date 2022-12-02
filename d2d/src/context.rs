@@ -8,35 +8,37 @@ use ::windows::{
     Win32::Graphics::Direct2D::{ID2D1HwndRenderTarget, D2D1_BRUSH_PROPERTIES},
 };
 
-use super::{color::Color, target::RenderTarget};
+use crate::Color;
 
 /// Drawing context for performing batched operations on an underlying render
 /// target. Drawing may _only_ be performed via a `Context`.
 ///
-/// ## Draw Lifecycle
-///
-/// A `BeginDraw` is automatically called when the context is created
-/// and `EndDraw` is automatically called when the context is dropped. During
-/// the time that the context is alive, an exclusive reference is held on the
-/// renderer to prevent concurrent operations.
-pub struct Context<'t> {
-    render_target: &'t mut RenderTarget,
+/// # Example
+/// ```
+/// todo!();
+/// ```
+pub struct Context {
+    /// Cached reference to a created and usable HWND hardware render target.
+    device_target: ID2D1HwndRenderTarget,
 }
 
-impl<'t> Context<'t> {
+impl Context {
     /// Construct a new [Context] for batching draw calls for the current frame.
-    pub(crate) fn new(render_target: &'t mut RenderTarget) -> Self {
-        let ctx = Self { render_target };
-        unsafe {
-            ctx.tgt().BeginDraw();
-        }
-        ctx
+    pub(crate) fn new(device_target: ID2D1HwndRenderTarget) -> Self {
+        Self { device_target }
+    }
+
+    /// Consumes the [`Context`] and gives back the inner
+    /// `ID2D1HwndRenderTarget`, usually done in preparation for an
+    /// [`Target::end_draw`] call.
+    pub(crate) fn into_inner(self) -> ID2D1HwndRenderTarget {
+        self.device_target
     }
 
     /// Clears the entire screen by filling with `color`.
     pub fn clear(&self, color: Color) {
         unsafe {
-            self.tgt().Clear(Some(&color.into() as _));
+            self.device_target.Clear(Some(&color.into() as _));
         }
     }
 
@@ -51,7 +53,7 @@ impl<'t> Context<'t> {
         };
         let brush = check_res(
             || unsafe {
-                self.tgt()
+                self.device_target
                     .CreateSolidColorBrush(&color.into() as _, Some(&brush_props as _))
             },
             "CreateSolidColorBrush",
@@ -60,20 +62,7 @@ impl<'t> Context<'t> {
 
         let rect = Rect2D::from_size_and_origin(Size2D::pixel(), origin);
         unsafe {
-            self.tgt().FillRectangle(&rect.into() as _, &brush);
+            self.device_target.FillRectangle(&rect.into() as _, &brush);
         }
-    }
-
-    /// Private syntactic sugar to retrieve the Direct2D render target.
-    fn tgt(&self) -> &ID2D1HwndRenderTarget {
-        self.render_target.target()
-    }
-}
-
-impl<'t> Drop for Context<'t> {
-    /// Drops the context, automatically committing the batched drawing
-    /// commands.
-    fn drop(&mut self) {
-        check_res(|| unsafe { self.tgt().EndDraw(None, None) }, "EndDraw").unwrap();
     }
 }

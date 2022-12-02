@@ -1,6 +1,6 @@
 //! Crate-specific error and result types, plus common conversions.
 
-use ::windows::core::Error as Win32Error;
+use ::windows::core::{Error as Win32Error, HRESULT};
 
 /// Result type returned by functions that call into Win32 API.
 pub type Result<T> = ::std::result::Result<T, Error>;
@@ -21,6 +21,15 @@ pub enum Error {
         /// which were gathered at the point of the error.
         context: Win32Error,
     },
+}
+
+impl Error {
+    /// Returns the underlying Win32 error code, if any.
+    pub fn code(&self) -> Option<HRESULT> {
+        match self {
+            Self::Unexpected { context, .. } => Some(context.code()),
+        }
+    }
 }
 
 /// Gets the last Win32 error (the Win32 equivalent of `errno`).

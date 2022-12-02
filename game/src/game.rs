@@ -1,6 +1,7 @@
 use crate::resources::FERRIS_ICON;
 
 use ::d2d::{Color, D2DFactory, RenderTarget};
+use ::std::rc::Rc;
 use ::tracing::info;
 use ::win32::{errors::Result, window::Window};
 use ::win_geom::d2::{Point2D, Size2D};
@@ -12,7 +13,7 @@ pub struct Game {
     main_window: Window,
     window_title: String,
 
-    _factory: D2DFactory,
+    _factory: Rc<D2DFactory>,
     render_target: RenderTarget,
 
     /// Dirty flag for changes that require rendering. If not dirty, we can skip
@@ -38,9 +39,7 @@ impl Game {
             .expect("Failed to create main window");
 
         let factory = D2DFactory::new().expect("Failed to create Direct2D factory");
-        let render_target = factory
-            .make_render_target(main_window.hwnd(), dimension)
-            .expect("Failed to create Direct2D render target");
+        let render_target = factory.make_render_target(main_window.hwnd(), dimension);
 
         Self {
             main_window,
@@ -76,9 +75,10 @@ impl Game {
             return;
         }
 
-        let ctx = self.render_target.make_context();
+        let ctx = self.render_target.begin_draw();
         ctx.clear(Color::blue());
         ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, Color::red());
+        self.render_target.end_draw(ctx);
 
         self.main_window.set_title(&self.window_title).unwrap();
         self.is_render_dirty = false;

@@ -2,7 +2,7 @@
 //! resources.
 
 use crate::RenderTarget;
-use ::std::{cell::UnsafeCell, marker::PhantomData};
+use ::std::{cell::UnsafeCell, marker::PhantomData, rc::Rc};
 use ::tracing::debug;
 use ::win32::{
     errors::Result,
@@ -12,8 +12,9 @@ use ::win_geom::d2::Size2D;
 use ::windows::Win32::{
     Foundation::HWND,
     Graphics::Direct2D::{
-        D2D1CreateFactory, ID2D1Factory, D2D1_FACTORY_OPTIONS, D2D1_FACTORY_TYPE_SINGLE_THREADED,
-        D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_PROPERTIES,
+        D2D1CreateFactory, ID2D1Factory, ID2D1HwndRenderTarget, D2D1_FACTORY_OPTIONS,
+        D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_HWND_RENDER_TARGET_PROPERTIES,
+        D2D1_RENDER_TARGET_PROPERTIES,
     },
 };
 
@@ -31,10 +32,10 @@ impl D2DFactory {
     /// Create a new factory from which all the other Direct2D resources can be
     /// created.
     ///
-    /// Only one factory should exist, and it should exist for the lifetime of
-    /// the process, but it _must_ be dropped _before_ the process exists in
-    /// order to cleanly free up resources.
-    pub fn new() -> Result<Self> {
+    /// Only one factory should exist per thread, and it should exist for the
+    /// lifetime of the thread, but it _must_ be dropped _before_ the thread
+    /// exists in order to cleanly free up resources.
+    pub fn new() -> Result<Rc<Self>> {
         let options = D2D1_FACTORY_OPTIONS {
             debugLevel: if cfg!(debug_assertions) {
                 debug!("Creating ID2D1Factory with debug level: info");
@@ -48,18 +49,33 @@ impl D2DFactory {
         let factory: ID2D1Factory =
             chk!(res; D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, Some(&options as _)))?;
 
-        Ok(Self {
+        Ok(Rc::new(Self {
             phantom: Default::default(),
             inner: factory,
-        })
+        }))
     }
 
     /// Makes a new Direct2D render target which targets a Win32 window.
     ///
     /// # Example
     ///
-    /// TODO...
-    pub fn make_render_target(&self, hwnd: HWND, size: Size2D<i32>) -> Result<RenderTarget> {
+    /// ```
+    /// use ::d2d::{D2DFactory, RenderTarget};
+
+    /// let factory = D
+    /// let mut target =
+    pub fn make_render_target(self: &Rc<Self>, hwnd: HWND, size: Size2D<i32>) -> RenderTarget {
+        RenderTarget::new(self, hwnd, size)
+    }
+
+    /// (Re-)creates the device render target. Called once on initialization and
+    /// anytime that Direct2D reports a hardware error that requires
+    /// device-specific resources to be re-created.
+    pub(crate) fn make_device_render_target(
+        &self,
+        hwnd: HWND,
+        size: Size2D<i32>,
+    ) -> Result<ID2D1HwndRenderTarget> {
         let render_props = D2D1_RENDER_TARGET_PROPERTIES::default();
         let hwnd_target_props = D2D1_HWND_RENDER_TARGET_PROPERTIES {
             hwnd,
@@ -68,14 +84,12 @@ impl D2DFactory {
         };
 
         // TODO: macro parsing for field access, not just free functions
-        let target = check_res(
+        check_res(
             || unsafe {
                 self.inner
                     .CreateHwndRenderTarget(&render_props as _, &hwnd_target_props as _)
             },
             "CreateHwndRenderTarget",
-        )?;
-
-        Ok(RenderTarget::new(target))
+        )
     }
 }
