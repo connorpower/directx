@@ -37,13 +37,13 @@ impl D2DFactory {
     pub fn new() -> Result<Self> {
         let options = D2D1_FACTORY_OPTIONS {
             debugLevel: if cfg!(debug_assertions) {
+                debug!("Creating ID2D1Factory with debug level: info");
                 ::windows::Win32::Graphics::Direct2D::D2D1_DEBUG_LEVEL_INFORMATION
             } else {
+                debug!("Creating ID2D1Factory with no debug level: non");
                 ::windows::Win32::Graphics::Direct2D::D2D1_DEBUG_LEVEL_NONE
             },
         };
-
-        debug!("Creating ID2D1Factory with {options:?}");
 
         let factory: ID2D1Factory =
             chk!(res; D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, Some(&options as _)))?;
