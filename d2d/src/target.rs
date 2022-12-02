@@ -1,17 +1,25 @@
 use crate::context::Context;
+use ::std::{cell::UnsafeCell, marker::PhantomData};
 use ::windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
 
 /// A [`RenderTarget`]
 pub struct RenderTarget {
     // TODO: abstract HWND or DXGISurfaceTarget behind common trait
     inner: ID2D1HwndRenderTarget,
+
+    /// Force !Send & !Sync, as our `render_target` can only be used by the
+    /// thread on which it was created.
+    phantom: PhantomData<UnsafeCell<()>>,
 }
 
 // Crate-internal interface.
 impl RenderTarget {
     /// Crate-internal constructor, called by the [`Factory`](super::Factory).
     pub(crate) fn new(inner: ID2D1HwndRenderTarget) -> Self {
-        Self { inner }
+        Self {
+            phantom: Default::default(),
+            inner,
+        }
     }
 
     /// Returns a crate-internal reference to the underlying Direct2D render

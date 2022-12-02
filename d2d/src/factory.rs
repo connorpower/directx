@@ -2,6 +2,7 @@
 //! resources.
 
 use crate::RenderTarget;
+use ::std::{cell::UnsafeCell, marker::PhantomData};
 use ::tracing::debug;
 use ::win32::{
     errors::Result,
@@ -20,6 +21,10 @@ use ::windows::Win32::{
 /// Direct2D resources.
 pub struct D2DFactory {
     inner: ID2D1Factory,
+
+    /// Force !Send & !Sync, as our `factory` can only be used by the thread on
+    /// which it was created.
+    phantom: PhantomData<UnsafeCell<()>>,
 }
 
 impl D2DFactory {
@@ -43,7 +48,10 @@ impl D2DFactory {
         let factory: ID2D1Factory =
             chk!(res; D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, Some(&options as _)))?;
 
-        Ok(Self { inner: factory })
+        Ok(Self {
+            phantom: Default::default(),
+            inner: factory,
+        })
     }
 
     /// Makes a new Direct2D render target which targets a Win32 window.

@@ -8,7 +8,8 @@ use crate::{
 
 use ::parking_lot::RwLock;
 use ::std::{
-    cell::Cell,
+    cell::{Cell, UnsafeCell},
+    marker::PhantomData,
     ops::DerefMut,
     rc::Rc,
     sync::{
@@ -34,6 +35,9 @@ use ::windows::{
 };
 
 pub(super) struct WindowInner {
+    /// Force !Send & !Sync, as our window can only be used by the thread on
+    /// which it was created.
+    phantom: PhantomData<UnsafeCell<()>>,
     /// A reference-counted handle to the Win32 window class registered for
     /// windows of this type. When the last `Window` instance is released, the
     /// corresponding Win32 window class will be de-registered.
@@ -63,6 +67,7 @@ impl WindowInner {
         debug!(wnd_title = %title, "Creating window inner");
 
         let this = Rc::new(Self {
+            phantom: Default::default(),
             title: title.to_string(),
             window_class: WindowClass::get_or_create("MainWindow", icon_id, Self::wnd_proc_setup)?,
             hwnd: Default::default(),

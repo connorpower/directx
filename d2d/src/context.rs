@@ -10,9 +10,6 @@ use ::windows::{
 
 use super::{color::Color, target::RenderTarget};
 
-// TODO: trait
-// TODO: ensure !Send, !Sync
-
 /// Drawing context for performing batched operations on an underlying render
 /// target. Drawing may _only_ be performed via a `Context`.
 ///
