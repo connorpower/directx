@@ -1,5 +1,5 @@
-//! [`::d2d`] is a Direct2D-based graphics package which provides only the most
-//! minimal of conveniences over the underlying DirectX implementation.
+//! [`::d2d`](crate) is a Direct2D-based graphics package which provides only
+//! the most minimal of conveniences over the underlying DirectX implementation.
 
 #![deny(rust_2018_idioms)]
 #![warn(missing_docs)]
