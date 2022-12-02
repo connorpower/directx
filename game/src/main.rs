@@ -22,7 +22,7 @@ pub fn main() {
     );
 
     {
-        let com_handle = ComLibraryHandle::acquire();
+        let _com_handle = ComLibraryHandle::acquire();
         if let Err(e) = Game::new().run() {
             error!(error = %e);
         }

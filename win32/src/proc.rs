@@ -41,9 +41,7 @@ thread_local! {
 /// # Usage
 ///
 /// ```rust
-/// use ::win32::proc::ComLibraryHandle;
-///
-/// fn main() {
+/// {
 ///     let _handle = ComLibraryHandle::load();
 ///
 ///     // Do stuff...
@@ -64,7 +62,7 @@ impl ComLibraryHandle {
         COM_LIBRARY_HANDLE.with(|cell| {
             let cell_ref = cell.borrow();
             if let Some(h) = Weak::upgrade(&*cell_ref) {
-                return h;
+                h
             } else {
                 drop(cell_ref);
                 ::tracing::debug!("Initializing COM library (apartment-threaded)");
