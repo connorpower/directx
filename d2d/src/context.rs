@@ -8,7 +8,7 @@ use ::windows::{
     Win32::Graphics::Direct2D::{ID2D1HwndRenderTarget, D2D1_BRUSH_PROPERTIES},
 };
 
-use crate::Color;
+use crate::{Color, RenderTarget};
 
 /// Drawing context for performing batched operations on an underlying render
 /// target. Drawing may _only_ be performed via a `Context`.
@@ -21,6 +21,7 @@ use crate::Color;
 /// # use ::d2d::D2DFactory;
 /// use ::win_geom::d2::Point2D;
 /// use ::d2d::Color;
+///
 /// # let factory = D2DFactory::new().unwrap();
 /// # let mut render_target = factory.make_render_target(
 /// #     HWND(0),
@@ -29,24 +30,26 @@ use crate::Color;
 /// let ctx = render_target.begin_draw();
 /// ctx.clear(Color::blue());
 /// ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, Color::red());
-/// render_target.end_draw(ctx);
+/// ctx.end_draw();
 /// ```
-pub struct Context {
+pub struct Context<'t> {
+    /// Exclusive reference to the [`RenderTarget`] into which this context is
+    /// drawing.
+    render_target: &'t mut RenderTarget,
     /// Cached reference to a created and usable HWND hardware render target.
     device_target: ID2D1HwndRenderTarget,
 }
 
-impl Context {
+impl<'t> Context<'t> {
     /// Construct a new [Context] for batching draw calls for the current frame.
-    pub(crate) fn new(device_target: ID2D1HwndRenderTarget) -> Self {
-        Self { device_target }
-    }
-
-    /// Consumes the [`Context`] and gives back the inner
-    /// `ID2D1HwndRenderTarget`, usually done in preparation for an
-    /// [`Target::end_draw`] call.
-    pub(crate) fn into_inner(self) -> ID2D1HwndRenderTarget {
-        self.device_target
+    pub(crate) fn new(
+        device_target: ID2D1HwndRenderTarget,
+        render_target: &'t mut RenderTarget,
+    ) -> Self {
+        Self {
+            device_target,
+            render_target,
+        }
     }
 
     /// Clears the entire screen by filling with `color`.
@@ -78,5 +81,17 @@ impl Context {
         unsafe {
             self.device_target.FillRectangle(&rect.into() as _, &brush);
         }
+    }
+
+    /// Ends drawing operations on the render target causing the changes to
+    /// become visible and the render target to become ready for the next
+    /// [`begin_draw`](RenderTarget::begin_draw) call.
+    pub fn end_draw(self) {
+        let Self {
+            render_target,
+            device_target,
+        } = self;
+
+        render_target.end_draw(device_target);
     }
 }

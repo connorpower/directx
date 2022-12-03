@@ -9,11 +9,13 @@ use ::windows::Win32::{
 
 /// Renders drawing instructions to a window.
 ///
-/// You must call [`begin_draw`] before issuing drawing commands. After you've
-/// finished drawing, call [`end_draw`] to indicate that drawing is finished and
-/// to release access to the buffer backing the render target.
+/// You must call [`begin_draw`] before issuing drawing commands to receive a
+/// [`Context`]. All drawing must be done via the returned [`Context`] object.
+/// After you've finished drawing, call [`end_draw`] on that [`Context`] object
+/// to indicate that drawing is finished and to release access to the buffer
+/// backing the render target.
 ///
-/// [`RenderTarget` ]objects are double buffered, so drawing commands issued do
+/// [`RenderTarget`] objects are double buffered, so drawing commands issued do
 /// not appear immediately, but rather are performed on an offscreen surface.
 /// When [`end_draw`] is called, if there have been no rendering errors, the
 /// offscreen buffer is presented. If there have been rendering errors in the
@@ -27,6 +29,7 @@ use ::windows::Win32::{
 /// # use ::windows::Win32::Foundation::HWND;
 /// use ::win_geom::d2::Point2D;
 /// use ::d2d::{D2DFactory, Color};
+///
 /// # let hwnd = HWND(0);
 /// # let size = Size2D { width: 100, height: 100 };
 /// let factory = D2DFactory::new().unwrap();
@@ -35,11 +38,11 @@ use ::windows::Win32::{
 /// let ctx = render_target.begin_draw();
 /// ctx.clear(Color::blue());
 /// ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, Color::red());
-/// render_target.end_draw(ctx);
+/// ctx.end_draw();
 /// ```
 ///
 /// [`begin_draw`]: Self::begin_draw
-/// [`end_draw`]: Self::end_draw
+/// [`end_draw`]: Context::end_draw
 pub struct RenderTarget {
     /// State pattern object helps manage the two states we might find ourselves
     /// in:
@@ -52,12 +55,15 @@ pub struct RenderTarget {
 impl RenderTarget {
     /// Make a new drawing [Context] for drawing the next frame.
     ///
-    /// After [`Self::begin_draw`] is called, a render target will normally
-    /// build up a batch of rendering commands, but defer processing of these
-    /// commands until either an internal buffer is full, or until
-    /// [`Self::end_draw`] is called. Drawing can _only_ be achieved via a
-    /// [Context]. A new [Context] should be created for each frame.
-    pub fn begin_draw(&mut self) -> Context {
+    /// After [`begin_draw`] is called, a render target will normally build up a
+    /// batch of rendering commands, but defer processing of these commands
+    /// until either an internal buffer is full, or until [`end_draw`] is
+    /// called. Drawing can _only_ be achieved via a [Context]. A new [Context]
+    /// should be created for each frame.
+    ///
+    /// [`begin_draw`]: Self::begin_draw
+    /// [`end_draw`]: Context::end_draw
+    pub fn begin_draw(&mut self) -> Context<'_> {
         let state = ::std::mem::replace(&mut self.state, State::Poisoned);
         let (new_state, device_target) = state.begin_draw();
         self.state = new_state;
@@ -66,14 +72,13 @@ impl RenderTarget {
             device_target.BeginDraw();
         }
 
-        Context::new(device_target)
+        Context::new(device_target, self)
     }
 
     /// Ends drawing operations on the render target causing the changes to
     /// become visible and the render target to become ready for the next
     /// [`Self::begin_draw`] call.
-    pub fn end_draw(&mut self, ctx: Context) {
-        let device_target = ctx.into_inner();
+    pub(crate) fn end_draw(&mut self, device_target: ID2D1HwndRenderTarget) {
         let must_recreate =
             match check_res(|| unsafe { device_target.EndDraw(None, None) }, "EndDraw") {
                 Err(e) if e.code() == Some(D2DERR_RECREATE_TARGET) => true,

@@ -78,7 +78,7 @@ impl Game {
         let ctx = self.render_target.begin_draw();
         ctx.clear(Color::blue());
         ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, Color::red());
-        self.render_target.end_draw(ctx);
+        ctx.end_draw();
 
         self.main_window.set_title(&self.window_title).unwrap();
         self.is_render_dirty = false;
