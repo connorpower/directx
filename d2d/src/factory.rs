@@ -60,10 +60,9 @@ impl D2DFactory {
     /// # Example
     ///
     /// ```
-    /// use ::d2d::{D2DFactory, RenderTarget};
-
-    /// let factory = D
-    /// let mut target =
+    /// use ::d2d::D2DFactory;
+    /// let factory = D2DFactory::new().unwrap();
+    /// ```
     pub fn make_render_target(self: &Rc<Self>, hwnd: HWND, size: Size2D<i32>) -> RenderTarget {
         RenderTarget::new(self, hwnd, size)
     }
