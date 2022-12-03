@@ -180,6 +180,7 @@ impl State {
             }
             Self::Drawing { inner } => {
                 if must_recreate {
+                    ::tracing::warn!("Direct2D requires device resource re-creation");
                     Self::RequiresRecreation { inner }
                 } else {
                     Self::Created { inner, target }
