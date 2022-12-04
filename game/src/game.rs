@@ -1,6 +1,6 @@
 use crate::resources::FERRIS_ICON;
 
-use ::d2d::{Color, D2DFactory, RenderTarget};
+use ::d2d::{brushes::SolidColorBrush, Color, D2DFactory, RenderTarget};
 use ::std::rc::Rc;
 use ::tracing::info;
 use ::win32::{errors::Result, window::Window};
@@ -8,7 +8,6 @@ use ::win_geom::d2::{Point2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };
-use d2d::SolidColorBrush;
 
 pub struct Game {
     main_window: Window,

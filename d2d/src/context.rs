@@ -5,7 +5,10 @@ use ::std::rc::Rc;
 use ::win_geom::d2::{Point2D, Rect2D, Size2D};
 use ::windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
 
-use crate::{Brush, Color, DeviceResource, RenderTarget, SolidColorBrush};
+use crate::{
+    brushes::{Brush, SolidColorBrush},
+    Color, DeviceResource, RenderTarget,
+};
 
 /// Drawing context for performing batched operations on an underlying render
 /// target. Drawing may _only_ be performed via a `Context`.

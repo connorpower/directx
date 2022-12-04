@@ -15,14 +15,14 @@
     )
 )]
 
-mod brushes;
 mod color;
 mod context;
 mod factory;
+mod resources;
 mod target;
 
-pub use brushes::*;
 pub use color::*;
 pub use context::*;
 pub use factory::*;
+pub use resources::*;
 pub use target::*;

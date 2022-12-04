@@ -1,24 +1,14 @@
 //! Device-mapped Direct2D brushes for "painting" areas of a render target.
 
-use crate::{color::Color, RenderTarget};
+use crate::{color::Color, resources::DeviceResource, target::RenderTarget};
 use ::std::fmt::{self, Debug};
-use ::windows::Win32::Graphics::Direct2D::ID2D1SolidColorBrush;
-use windows::Win32::Graphics::Direct2D::ID2D1Brush;
+use ::windows::Win32::Graphics::Direct2D::{ID2D1Brush, ID2D1SolidColorBrush};
 
-/// A trait shared in common with all device-specific resources. A
-/// device-specific resource is a Direct2D resource which must be re-created if
-/// the render target is lost.
-pub(crate) trait DeviceResource {
-    /// The generation of the render target for which this resource was created.
-    /// If the two generations no longer agree, the resource must be re-created.
-    fn generation(&self) -> usize;
-
-    /// Re-create the resource if required (i.e. if the resource's generation no
-    /// longer matches that of the [`RenderTarget`]).
-    fn recreate_if_needed(&mut self, render_target: &mut RenderTarget);
-}
-
+/// A trait shared by all brush types [`SolidColorBrush`], etc. Allows private
+/// crate access to the underlying Direct2D brush.
 pub(crate) trait Brush {
+    /// Accesses the underlying device brush as a loosely-typed `ID2D1Brush`
+    /// which is the top-level Direct2D interface to which all brushes conform.
     fn device_brush(&self) -> &'_ ID2D1Brush;
 }
 
@@ -81,6 +71,5 @@ impl Debug for SolidColorBrush {
             .field("color", &self.color)
             .field("generation", &self.generation)
             .finish()
-        // TODO: needs-recreation?
     }
 }
