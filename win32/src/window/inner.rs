@@ -3,7 +3,7 @@ use crate::{
     input::keyboard::{Adapter as KbdAdapter, Keyboard},
     invoke::chk,
     types::*,
-    window::WindowClass,
+    window::{WindowClass, DPI},
 };
 
 use ::parking_lot::RwLock;
@@ -25,14 +25,18 @@ use ::windows::{
     Win32::{
         Foundation::{HWND, LPARAM, LRESULT, WPARAM},
         System::LibraryLoader::GetModuleHandleW,
-        UI::WindowsAndMessaging::{
-            AdjustWindowRectEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW,
-            SetWindowLongPtrW, ShowWindow, CREATESTRUCTW, CW_USEDEFAULT, GWLP_USERDATA,
-            GWLP_WNDPROC, SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE, WM_NCCREATE, WM_NCDESTROY,
-            WS_OVERLAPPEDWINDOW,
+        UI::{
+            HiDpi::AdjustWindowRectExForDpi,
+            WindowsAndMessaging::{
+                CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW,
+                SetWindowLongPtrW, SetWindowPos, ShowWindow, CREATESTRUCTW, CW_USEDEFAULT,
+                GWLP_USERDATA, GWLP_WNDPROC, SWP_NOMOVE, SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE,
+                WM_NCCREATE, WM_NCDESTROY, WS_OVERLAPPEDWINDOW,
+            },
         },
     },
 };
+use windows::Win32::Graphics::Gdi::UpdateWindow;
 
 pub(super) struct WindowInner {
     /// Force !Send & !Sync, as our window can only be used by the thread on
@@ -78,13 +82,7 @@ impl WindowInner {
 
         let hwnd = {
             let module = chk!(res; GetModuleHandleW(None))?;
-            let mut rect = Rect2D::from_size_and_origin(size, Point2D::default()).into();
-            chk!(bool; AdjustWindowRectEx(
-                &mut rect,
-                WS_OVERLAPPEDWINDOW,
-                false,
-                WINDOW_EX_STYLE::default()
-            ))?;
+
             let title = U16CString::from_str(title).expect("Window name contained null byte");
 
             chk!(ptr; CreateWindowExW(
@@ -94,8 +92,10 @@ impl WindowInner {
                     WS_OVERLAPPEDWINDOW,
                     CW_USEDEFAULT,
                     CW_USEDEFAULT,
-                    rect.right - rect.left,
-                    rect.bottom - rect.top,
+                    // 0 pixel width/height: show window as hidden first so we
+                    // can detect the monitor's DPI:
+                    0,
+                    0,
                     None,
                     None,
                     module,
@@ -103,7 +103,39 @@ impl WindowInner {
                 )
             )?
         };
-        unsafe { ShowWindow(hwnd, SW_SHOWNORMAL) };
+
+        // `SetWindowPos` function takes its size in pixels, so we
+        // obtain the window's DPI and use it to scale the window size_
+        let dpi = DPI::detect(hwnd);
+        let mut rect = dpi
+            .scale_rect(Rect2D::from_size_and_origin(size, Point2D::zero()))
+            .into();
+        chk!(bool; AdjustWindowRectExForDpi(
+            &mut rect,
+            WS_OVERLAPPEDWINDOW,
+            false,
+            WINDOW_EX_STYLE::default(),
+            dpi.into()
+        ))?;
+
+        let pixel_width = rect.right - rect.left;
+        let pixel_height = rect.bottom - rect.top;
+        ::tracing::warn!("adjusted window size: {pixel_width} x {pixel_height}");
+
+        chk!(bool; SetWindowPos(
+            hwnd,
+            HWND::default(),
+            0,
+            0,
+            pixel_width,
+            pixel_height,
+            SWP_NOMOVE
+        ))?;
+
+        unsafe {
+            ShowWindow(hwnd, SW_SHOWNORMAL);
+            UpdateWindow(hwnd);
+        }
 
         // Note: We don't store `hwnd` in `this` here. Instead we store the
         // handle when if first appears in the window proc function.

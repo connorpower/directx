@@ -7,14 +7,16 @@ use ::tracing::debug;
 use ::win32::{
     errors::Result,
     invoke::{check_res, chk},
+    window::DPI,
 };
 use ::win_geom::d2::Size2D;
 use ::windows::Win32::{
     Foundation::HWND,
     Graphics::Direct2D::{
-        D2D1CreateFactory, ID2D1Factory, ID2D1HwndRenderTarget, D2D1_FACTORY_OPTIONS,
-        D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_HWND_RENDER_TARGET_PROPERTIES,
-        D2D1_RENDER_TARGET_PROPERTIES,
+        D2D1CreateFactory, ID2D1Factory, ID2D1HwndRenderTarget, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+        D2D1_FACTORY_OPTIONS, D2D1_FACTORY_TYPE_SINGLE_THREADED,
+        D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_PROPERTIES,
+        D2D1_RENDER_TARGET_TYPE_HARDWARE,
     },
 };
 
@@ -75,20 +77,37 @@ impl D2DFactory {
         hwnd: HWND,
         size: Size2D<i32>,
     ) -> Result<ID2D1HwndRenderTarget> {
-        let render_props = D2D1_RENDER_TARGET_PROPERTIES::default();
+        let dpi = DPI::detect(hwnd);
+
+        let render_props = D2D1_RENDER_TARGET_PROPERTIES {
+            r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
+            dpiX: dpi.into(),
+            dpiY: dpi.into(),
+            ..Default::default()
+        };
+
+        let pixel_size = dpi.scale_size(size);
+        ::tracing::warn!("dpi.scale(size) = {pixel_size:?}");
+
         let hwnd_target_props = D2D1_HWND_RENDER_TARGET_PROPERTIES {
             hwnd,
-            pixelSize: size.cast::<u32>().into(),
+            pixelSize: pixel_size.cast::<u32>().into(),
             ..Default::default()
         };
 
         // TODO: macro parsing for field access, not just free functions
-        check_res(
+        let render_target = check_res(
             || unsafe {
                 self.inner
                     .CreateHwndRenderTarget(&render_props as _, &hwnd_target_props as _)
             },
             "CreateHwndRenderTarget",
-        )
+        )?;
+
+        unsafe {
+            render_target.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        }
+
+        Ok(render_target)
     }
 }

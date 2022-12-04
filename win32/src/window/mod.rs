@@ -118,9 +118,11 @@
 //! ```
 
 pub(crate) mod class;
+mod dpi;
 pub(crate) mod inner;
 mod wnd;
 
 use class::*;
+pub use dpi::*;
 use inner::*;
 pub use wnd::*;

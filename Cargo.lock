@@ -616,6 +616,7 @@ dependencies = [
  "deku",
  "lazy_static",
  "maplit",
+ "num-traits",
  "parking_lot",
  "paste",
  "pretty_assertions",

@@ -1,6 +1,12 @@
 //! Top-level rust Window object which abstracts the underlying Win32 API.
 
-use crate::{errors::*, input::keyboard::Keyboard, invoke::chk, types::*, window::WindowInner};
+use crate::{
+    errors::*,
+    input::keyboard::Keyboard,
+    invoke::chk,
+    types::*,
+    window::{WindowInner, DPI},
+};
 
 use ::std::{ops::DerefMut, rc::Rc};
 use ::tracing::{debug, error};
@@ -8,10 +14,7 @@ use ::widestring::U16CString;
 use ::win_geom::d2::Size2D;
 use ::windows::{
     core::PCWSTR,
-    Win32::{
-        Foundation::HWND,
-        UI::{HiDpi::GetDpiForWindow, WindowsAndMessaging::SetWindowTextW},
-    },
+    Win32::{Foundation::HWND, UI::WindowsAndMessaging::SetWindowTextW},
 };
 
 /// A rusty wrapper around Win32 window class.
@@ -44,8 +47,8 @@ impl Window {
     }
 
     /// Returns the dots per inch (dpi) value for the window.
-    pub fn dpi(&self) -> u32 {
-        unsafe { GetDpiForWindow(self.hwnd()) }
+    pub fn dpi(&self) -> DPI {
+        DPI::detect(self.hwnd())
     }
 
     /// Returns whether the window has requested to close, and immediately

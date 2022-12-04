@@ -273,6 +273,16 @@ where
         }
     }
 
+    /// Returns the width of the rect.
+    pub fn width(&self) -> T {
+        self.right - self.left
+    }
+
+    /// Returns the height of the rect.
+    pub fn height(&self) -> T {
+        self.bottom - self.top
+    }
+
     /// A generic interface which casts a [`Rect2D`] from numeric representation
     /// into another. The cast will never fail but may cause narrowing or
     /// precision loss. The underlying cast operates the same as the `as`

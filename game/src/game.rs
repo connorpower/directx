@@ -4,11 +4,10 @@ use ::d2d::{brushes::SolidColorBrush, win_ui_colors, Color, D2DFactory, RenderTa
 use ::std::rc::Rc;
 use ::tracing::info;
 use ::win32::{errors::Result, window::Window};
-use ::win_geom::d2::{Point2D, Size2D};
+use ::win_geom::d2::{Point2D, Rect2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };
-use win_geom::d2::Rect2D;
 
 struct DeviceResources {
     light_slate_gray_brush: SolidColorBrush,
@@ -46,22 +45,20 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Self {
-        let dimension = Size2D {
-            width: 800,
-            height: 600,
+        // Use dimensions which are divisible by 8 to work well on 100%, 125%
+        // and 150% DPI.
+        let size = Size2D {
+            width: 720,
+            height: 640,
         };
 
-        let main_window = Window::new(dimension, "Main Window", Some(FERRIS_ICON.id().into()))
+        let main_window = Window::new(size, "Main Window", Some(FERRIS_ICON.id().into()))
             .expect("Failed to create main window");
 
-        let system_dpi = unsafe { ::windows::Win32::UI::HiDpi::GetDpiForSystem() };
-        let window_dpi = main_window.dpi();
-
-        ::tracing::debug!("System DPI: {system_dpi}");
-        ::tracing::debug!("Window DPI: {window_dpi}");
+        ::tracing::debug!("Window DPI: {dpi}", dpi = main_window.dpi());
 
         let factory = D2DFactory::new().expect("Failed to create Direct2D factory");
-        let mut render_target = factory.make_render_target(main_window.hwnd(), dimension);
+        let mut render_target = factory.make_render_target(main_window.hwnd(), size);
         let resources = DeviceResources::make(&mut render_target);
 
         Self {
@@ -69,7 +66,7 @@ impl Game {
             _factory: factory,
             render_target,
             resources,
-            is_render_dirty: true,
+            is_render_dirty: true, // Immediately dirty to ensure first draw
             is_shutting_down: false,
         }
     }
@@ -91,7 +88,7 @@ impl Game {
 
         // Draw light grey grid with 10px squares
         let stroke_width = 0.5;
-        for x in (0..u_dim.width).step_by(10).map(|u| u as f32) {
+        for x in (0..u_dim.width).step_by(8).map(|u| u as f32) {
             ctx.draw_line(
                 Point2D { x, y: 0.0 },
                 Point2D { x, y: f_dim.height },
@@ -99,7 +96,7 @@ impl Game {
                 &mut self.resources.light_slate_gray_brush,
             );
         }
-        for y in (0..u_dim.height).step_by(10).map(|u| u as f32) {
+        for y in (0..u_dim.height).step_by(8).map(|u| u as f32) {
             ctx.draw_line(
                 Point2D { x: 0.0, y },
                 Point2D { x: f_dim.width, y },
@@ -112,19 +109,19 @@ impl Game {
         let stroke_width = 1.0;
         ctx.fill_rect(
             Rect2D {
-                left: (u_dim.width / 2 - 50) as _,
-                right: (u_dim.width / 2 + 50) as _,
-                top: (u_dim.height / 2 - 50) as _,
-                bottom: (u_dim.height / 2 + 50) as _,
+                left: (u_dim.width / 2 - 56) as _,
+                right: (u_dim.width / 2 + 56) as _,
+                top: (u_dim.height / 2 - 56) as _,
+                bottom: (u_dim.height / 2 + 56) as _,
             },
             &mut self.resources.light_slate_gray_brush,
         );
         ctx.stroke_rect(
             Rect2D {
-                left: (u_dim.width / 2 - 100) as _,
-                right: (u_dim.width / 2 + 100) as _,
-                top: (u_dim.height / 2 - 100) as _,
-                bottom: (u_dim.height / 2 + 100) as _,
+                left: (u_dim.width / 2 - 104) as _,
+                right: (u_dim.width / 2 + 104) as _,
+                top: (u_dim.height / 2 - 104) as _,
+                bottom: (u_dim.height / 2 + 104) as _,
             },
             &mut self.resources.cornflower_blue_brush,
             stroke_width,
