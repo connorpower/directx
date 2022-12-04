@@ -3,7 +3,7 @@
 
 use ::std::rc::Rc;
 use ::win_geom::d2::{Point2D, Rect2D, Size2D};
-use ::windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
+use ::windows::{core::InParam, Win32::Graphics::Direct2D::ID2D1HwndRenderTarget};
 
 use crate::{
     brushes::{Brush, SolidColorBrush},
@@ -69,6 +69,56 @@ impl<'t> Context<'t> {
         unsafe {
             self.device_target
                 .FillRectangle(&rect.into() as _, brush.device_brush());
+        }
+    }
+
+    /// Draws a line between the specified points using a solid stroke of width
+    /// `stroke_width`.
+    pub fn draw_line(
+        &mut self,
+        p0: Point2D<f32>,
+        p1: Point2D<f32>,
+        stroke_width: f32,
+        brush: &mut SolidColorBrush,
+    ) {
+        brush.recreate_if_needed(self.render_target);
+
+        unsafe {
+            self.device_target.DrawLine(
+                p0.into(),
+                p1.into(),
+                brush.device_brush(),
+                stroke_width,
+                InParam::null(),
+            );
+        }
+    }
+
+    /// Paints the interior of the specified rectangle.
+    pub fn fill_rect(&mut self, rect: Rect2D<f32>, brush: &mut SolidColorBrush) {
+        brush.recreate_if_needed(self.render_target);
+        unsafe {
+            self.device_target
+                .FillRectangle(&rect.into() as _, brush.device_brush());
+        }
+    }
+
+    /// Draws the outline of a rectangle that has the specified dimensions with
+    /// a solid color stroke.
+    pub fn stroke_rect(
+        &mut self,
+        rect: Rect2D<f32>,
+        brush: &mut SolidColorBrush,
+        stroke_width: f32,
+    ) {
+        brush.recreate_if_needed(self.render_target);
+        unsafe {
+            self.device_target.DrawRectangle(
+                &rect.into() as _,
+                brush.device_brush(),
+                stroke_width,
+                InParam::null(),
+            );
         }
     }
 

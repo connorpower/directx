@@ -329,7 +329,16 @@ mod win32 {
 #[cfg(feature = "d2d")]
 mod d2d {
     use super::*;
-    use ::windows::Win32::Graphics::Direct2D::Common::{D2D_RECT_F, D2D_SIZE_U};
+    use ::windows::Win32::Graphics::Direct2D::Common::{D2D_POINT_2F, D2D_RECT_F, D2D_SIZE_U};
+
+    impl From<Point2D<f32>> for D2D_POINT_2F {
+        fn from(val: Point2D<f32>) -> Self {
+            // SAFETY: our `Point2D` is modelled on the same memory layout as
+            // the Direct2D `D2D_POINT_2F` and we restrict this conversion
+            // implementation to sizes with `f32` representations.
+            unsafe { ::std::mem::transmute(val) }
+        }
+    }
 
     impl From<Size2D<u32>> for D2D_SIZE_U {
         fn from(val: Size2D<u32>) -> Self {
