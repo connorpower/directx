@@ -1,6 +1,6 @@
 use crate::resources::FERRIS_ICON;
 
-use ::d2d::{brushes::SolidColorBrush, Color, D2DFactory, RenderTarget};
+use ::d2d::{brushes::SolidColorBrush, win_ui_colors, Color, D2DFactory, RenderTarget};
 use ::std::rc::Rc;
 use ::tracing::info;
 use ::win32::{errors::Result, window::Window};
@@ -8,15 +8,30 @@ use ::win_geom::d2::{Point2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };
+use win_geom::d2::Rect2D;
+
+struct DeviceResources {
+    light_slate_gray_brush: SolidColorBrush,
+    cornflower_blue_brush: SolidColorBrush,
+}
+
+impl DeviceResources {
+    fn make(render_target: &mut RenderTarget) -> Self {
+        Self {
+            light_slate_gray_brush: render_target
+                .make_solid_color_brush(win_ui_colors::light_slate_gray()),
+            cornflower_blue_brush: render_target
+                .make_solid_color_brush(win_ui_colors::cornflower_blue()),
+        }
+    }
+}
 
 pub struct Game {
     main_window: Window,
-    window_title: String,
 
     _factory: Rc<D2DFactory>,
     render_target: RenderTarget,
-
-    pixel_brush: SolidColorBrush,
+    resources: DeviceResources,
 
     /// Dirty flag for changes that require rendering. If not dirty, we can skip
     /// rendering.
@@ -31,48 +46,29 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Self {
-        let window_title = "Main Window".to_string();
-
         let dimension = Size2D {
             width: 800,
             height: 600,
         };
-        let main_window = Window::new(dimension, &window_title, Some(FERRIS_ICON.id().into()))
+        let main_window = Window::new(dimension, "Main Window", Some(FERRIS_ICON.id().into()))
             .expect("Failed to create main window");
 
         let factory = D2DFactory::new().expect("Failed to create Direct2D factory");
         let mut render_target = factory.make_render_target(main_window.hwnd(), dimension);
-
-        let pixel_brush = render_target.make_solid_color_brush(Color::red());
+        let resources = DeviceResources::make(&mut render_target);
 
         Self {
             main_window,
-            window_title,
             _factory: factory,
             render_target,
-            pixel_brush,
+            resources,
             is_render_dirty: true,
             is_shutting_down: false,
         }
     }
 
     fn update(&mut self) {
-        let len = self.window_title.len();
-
-        {
-            let mut kbd = self.main_window.keyboard();
-            let mut input = kbd.drain_input();
-            self.window_title.truncate(
-                self.window_title
-                    .len()
-                    .saturating_sub(input.num_backspaces()),
-            );
-            self.window_title.extend(input.chars());
-        }
-
-        if self.window_title.len() != len {
-            self.is_render_dirty = true;
-        }
+        // TODO...
     }
 
     fn draw(&mut self) {
@@ -81,12 +77,53 @@ impl Game {
         }
 
         let mut ctx = self.render_target.begin_draw();
-        ctx.clear(Color::blue());
-        ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, &mut self.pixel_brush);
+        ctx.clear(Color::white());
+
+        let u_dim = self.main_window.size();
+        let f_dim = u_dim.cast::<f32>();
+
+        // Draw light grey grid with 10px squares
+        let stroke_width = 0.5;
+        for x in (0..u_dim.width).step_by(10).map(|u| u as f32) {
+            ctx.draw_line(
+                Point2D { x, y: 0.0 },
+                Point2D { x, y: f_dim.height },
+                stroke_width,
+                &mut self.resources.light_slate_gray_brush,
+            );
+        }
+        for y in (0..u_dim.height).step_by(10).map(|u| u as f32) {
+            ctx.draw_line(
+                Point2D { x: 0.0, y },
+                Point2D { x: f_dim.width, y },
+                stroke_width,
+                &mut self.resources.light_slate_gray_brush,
+            );
+        }
+
+        // Draw two rectangles, one inner filled gray and one outer stroked blue
+        let stroke_width = 1.0;
+        ctx.fill_rect(
+            Rect2D {
+                left: (u_dim.width / 2 - 50) as _,
+                right: (u_dim.width / 2 + 50) as _,
+                top: (u_dim.height / 2 - 50) as _,
+                bottom: (u_dim.height / 2 + 50) as _,
+            },
+            &mut self.resources.light_slate_gray_brush,
+        );
+        ctx.stroke_rect(
+            Rect2D {
+                left: (u_dim.width / 2 - 100) as _,
+                right: (u_dim.width / 2 + 100) as _,
+                top: (u_dim.height / 2 - 100) as _,
+                bottom: (u_dim.height / 2 + 100) as _,
+            },
+            &mut self.resources.cornflower_blue_brush,
+            stroke_width,
+        );
 
         ctx.end_draw();
-
-        self.main_window.set_title(&self.window_title).unwrap();
         self.is_render_dirty = false;
     }
 
