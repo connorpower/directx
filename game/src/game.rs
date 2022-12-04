@@ -8,6 +8,7 @@ use ::win_geom::d2::{Point2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };
+use d2d::SolidColorBrush;
 
 pub struct Game {
     main_window: Window,
@@ -15,6 +16,8 @@ pub struct Game {
 
     _factory: Rc<D2DFactory>,
     render_target: RenderTarget,
+
+    pixel_brush: SolidColorBrush,
 
     /// Dirty flag for changes that require rendering. If not dirty, we can skip
     /// rendering.
@@ -39,14 +42,17 @@ impl Game {
             .expect("Failed to create main window");
 
         let factory = D2DFactory::new().expect("Failed to create Direct2D factory");
-        let render_target = factory.make_render_target(main_window.hwnd(), dimension);
+        let mut render_target = factory.make_render_target(main_window.hwnd(), dimension);
+
+        let pixel_brush = render_target.make_solid_color_brush(Color::red());
 
         Self {
             main_window,
             window_title,
             _factory: factory,
             render_target,
-            is_render_dirty: false,
+            pixel_brush,
+            is_render_dirty: true,
             is_shutting_down: false,
         }
     }
@@ -75,9 +81,10 @@ impl Game {
             return;
         }
 
-        let ctx = self.render_target.begin_draw();
+        let mut ctx = self.render_target.begin_draw();
         ctx.clear(Color::blue());
-        ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, Color::red());
+        ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, &mut self.pixel_brush);
+
         ctx.end_draw();
 
         self.main_window.set_title(&self.window_title).unwrap();

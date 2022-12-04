@@ -1,14 +1,11 @@
 //! Graphics context which is used for all concrete drawing operations within a
 //! draw cycle.
 
-use ::win32::invoke::check_res;
+use ::std::rc::Rc;
 use ::win_geom::d2::{Point2D, Rect2D, Size2D};
-use ::windows::{
-    Foundation::Numerics::Matrix3x2,
-    Win32::Graphics::Direct2D::{ID2D1HwndRenderTarget, D2D1_BRUSH_PROPERTIES},
-};
+use ::windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
 
-use crate::{Color, RenderTarget};
+use crate::{Brush, Color, DeviceResource, RenderTarget, SolidColorBrush};
 
 /// Drawing context for performing batched operations on an underlying render
 /// target. Drawing may _only_ be performed via a `Context`.
@@ -37,13 +34,13 @@ pub struct Context<'t> {
     /// drawing.
     render_target: &'t mut RenderTarget,
     /// Cached reference to a created and usable HWND hardware render target.
-    device_target: ID2D1HwndRenderTarget,
+    device_target: Rc<ID2D1HwndRenderTarget>,
 }
 
 impl<'t> Context<'t> {
     /// Construct a new [Context] for batching draw calls for the current frame.
     pub(crate) fn new(
-        device_target: ID2D1HwndRenderTarget,
+        device_target: Rc<ID2D1HwndRenderTarget>,
         render_target: &'t mut RenderTarget,
     ) -> Self {
         Self {
@@ -60,26 +57,15 @@ impl<'t> Context<'t> {
     }
 
     /// TEMP/HACK
-    /// Put a single pixel to the screen of `color` at `coord`.
-    pub fn put_pixel(&self, origin: Point2D<f32>, color: Color) {
-        // TODO: cache brushes
-
-        let brush_props = D2D1_BRUSH_PROPERTIES {
-            opacity: 1.0,
-            transform: Matrix3x2::identity(),
-        };
-        let brush = check_res(
-            || unsafe {
-                self.device_target
-                    .CreateSolidColorBrush(&color.into() as _, Some(&brush_props as _))
-            },
-            "CreateSolidColorBrush",
-        )
-        .expect("failed to create brush for put_pixel");
+    /// Put a single pixel to the screen using `brush` at `coord`.
+    /// TODO: allow any type of brush, not just SolidColor
+    pub fn put_pixel(&mut self, origin: Point2D<f32>, brush: &mut SolidColorBrush) {
+        brush.recreate_if_needed(self.render_target);
 
         let rect = Rect2D::from_size_and_origin(Size2D::pixel(), origin);
         unsafe {
-            self.device_target.FillRectangle(&rect.into() as _, &brush);
+            self.device_target
+                .FillRectangle(&rect.into() as _, brush.device_brush());
         }
     }
 
