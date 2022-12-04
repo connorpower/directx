@@ -50,8 +50,15 @@ impl Game {
             width: 800,
             height: 600,
         };
+
         let main_window = Window::new(dimension, "Main Window", Some(FERRIS_ICON.id().into()))
             .expect("Failed to create main window");
+
+        let system_dpi = unsafe { ::windows::Win32::UI::HiDpi::GetDpiForSystem() };
+        let window_dpi = main_window.dpi();
+
+        ::tracing::debug!("System DPI: {system_dpi}");
+        ::tracing::debug!("Window DPI: {window_dpi}");
 
         let factory = D2DFactory::new().expect("Failed to create Direct2D factory");
         let mut render_target = factory.make_render_target(main_window.hwnd(), dimension);

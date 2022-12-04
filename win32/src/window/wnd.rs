@@ -8,7 +8,10 @@ use ::widestring::U16CString;
 use ::win_geom::d2::Size2D;
 use ::windows::{
     core::PCWSTR,
-    Win32::{Foundation::HWND, UI::WindowsAndMessaging::SetWindowTextW},
+    Win32::{
+        Foundation::HWND,
+        UI::{HiDpi::GetDpiForWindow, WindowsAndMessaging::SetWindowTextW},
+    },
 };
 
 /// A rusty wrapper around Win32 window class.
@@ -38,6 +41,11 @@ impl Window {
     /// interacting with other APIs.
     pub fn hwnd(&self) -> HWND {
         self.inner.hwnd()
+    }
+
+    /// Returns the dots per inch (dpi) value for the window.
+    pub fn dpi(&self) -> u32 {
+        unsafe { GetDpiForWindow(self.hwnd()) }
     }
 
     /// Returns whether the window has requested to close, and immediately
