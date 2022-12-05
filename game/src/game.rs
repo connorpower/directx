@@ -10,17 +10,23 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
 };
 
 struct DeviceResources {
-    light_slate_gray_brush: SolidColorBrush,
+    dark_slate_gray_brush: SolidColorBrush,
     cornflower_blue_brush: SolidColorBrush,
+    red_brush: SolidColorBrush,
+    green_brush: SolidColorBrush,
+    blue_brush: SolidColorBrush,
 }
 
 impl DeviceResources {
     fn make(render_target: &mut RenderTarget) -> Self {
         Self {
-            light_slate_gray_brush: render_target
-                .make_solid_color_brush(win_ui_colors::light_slate_gray()),
+            dark_slate_gray_brush: render_target
+                .make_solid_color_brush(win_ui_colors::dark_slate_gray()),
             cornflower_blue_brush: render_target
                 .make_solid_color_brush(win_ui_colors::cornflower_blue()),
+            red_brush: render_target.make_solid_color_brush(Color::red()),
+            green_brush: render_target.make_solid_color_brush(Color::green()),
+            blue_brush: render_target.make_solid_color_brush(Color::blue()),
         }
     }
 }
@@ -88,20 +94,35 @@ impl Game {
 
         // Draw light grey grid with 10px squares
         let stroke_width = 0.5;
-        for x in (0..u_dim.width).step_by(8).map(|u| u as f32) {
+        for (i, x) in (0..u_dim.width).step_by(8).map(|u| u as f32).enumerate() {
+            let brush = match i % 3 {
+                0 => &mut self.resources.red_brush,
+                1 => &mut self.resources.green_brush,
+                2 => &mut self.resources.blue_brush,
+                _ => unreachable!(),
+            };
+
             ctx.draw_line(
                 Point2D { x, y: 0.0 },
                 Point2D { x, y: f_dim.height },
                 stroke_width,
-                &mut self.resources.light_slate_gray_brush,
+                brush,
+                //&mut self.resources.light_slate_gray_brush,
             );
         }
-        for y in (0..u_dim.height).step_by(8).map(|u| u as f32) {
+        for (i, y) in (0..u_dim.height).step_by(8).map(|u| u as f32).enumerate() {
+            let brush = match i % 3 {
+                0 => &mut self.resources.red_brush,
+                1 => &mut self.resources.green_brush,
+                2 => &mut self.resources.blue_brush,
+                _ => unreachable!(),
+            };
             ctx.draw_line(
                 Point2D { x: 0.0, y },
                 Point2D { x: f_dim.width, y },
                 stroke_width,
-                &mut self.resources.light_slate_gray_brush,
+                brush,
+                //&mut self.resources.light_slate_gray_brush,
             );
         }
 
@@ -114,7 +135,7 @@ impl Game {
                 top: (u_dim.height / 2 - 56) as _,
                 bottom: (u_dim.height / 2 + 56) as _,
             },
-            &mut self.resources.light_slate_gray_brush,
+            &mut self.resources.cornflower_blue_brush,
         );
         ctx.stroke_rect(
             Rect2D {
@@ -123,7 +144,7 @@ impl Game {
                 top: (u_dim.height / 2 - 104) as _,
                 bottom: (u_dim.height / 2 + 104) as _,
             },
-            &mut self.resources.cornflower_blue_brush,
+            &mut self.resources.dark_slate_gray_brush,
             stroke_width,
         );
 
