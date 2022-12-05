@@ -4,7 +4,7 @@ use ::d2d::{brushes::SolidColorBrush, win_ui_colors, Color, D2DFactory, RenderTa
 use ::std::rc::Rc;
 use ::tracing::info;
 use ::win32::{errors::Result, window::Window};
-use ::win_geom::d2::{Point2D, Rect2D, Size2D};
+use ::win_geom::d2::{Point2D, Rect2D, RoundedRect2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };
@@ -127,16 +127,20 @@ impl Game {
         }
 
         // Draw two rectangles, one inner filled gray and one outer stroked blue
-        let stroke_width = 1.0;
-        ctx.fill_rect(
-            Rect2D {
-                left: (u_dim.width / 2 - 56) as _,
-                right: (u_dim.width / 2 + 56) as _,
-                top: (u_dim.height / 2 - 56) as _,
-                bottom: (u_dim.height / 2 + 56) as _,
+        ctx.fill_rounded_rect(
+            RoundedRect2D {
+                rect: Rect2D {
+                    left: (u_dim.width / 2 - 56) as _,
+                    right: (u_dim.width / 2 + 56) as _,
+                    top: (u_dim.height / 2 - 56) as _,
+                    bottom: (u_dim.height / 2 + 56) as _,
+                },
+                radius_x: 8.0,
+                radius_y: 8.0,
             },
             &mut self.resources.cornflower_blue_brush,
         );
+        let stroke_width = 1.0;
         ctx.stroke_rect(
             Rect2D {
                 left: (u_dim.width / 2 - 104) as _,

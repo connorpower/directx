@@ -2,7 +2,7 @@
 //! draw cycle.
 
 use ::std::rc::Rc;
-use ::win_geom::d2::{Point2D, Rect2D, Size2D};
+use ::win_geom::d2::{Point2D, Rect2D, RoundedRect2D, Size2D};
 use ::windows::{core::InParam, Win32::Graphics::Direct2D::ID2D1HwndRenderTarget};
 
 use crate::{
@@ -122,6 +122,49 @@ impl<'t> Context<'t> {
         }
     }
 
+    /// Paints the interior of the specified rounded rectangle.
+    ///
+    /// Even when both [`radius_x`] and [`radius_y`] are zero, a
+    /// [`RoundedRect2D`] is different from a [`Rect2D`]. When stroked, the
+    /// corners of the rounded rectangle are roundly joined, not mitered
+    /// (square).
+    ///
+    /// [`radius_x`]: RoundedRect2D.radius_x
+    /// [`radius_y`]: RoundedRect2D.radius_y
+    pub fn fill_rounded_rect(&mut self, rect: RoundedRect2D<f32>, brush: &mut SolidColorBrush) {
+        brush.recreate_if_needed(self.render_target);
+        unsafe {
+            self.device_target
+                .FillRoundedRectangle(&rect.into() as _, brush.device_brush());
+        }
+    }
+
+    /// Draws the outline of a rounded rectangle that has the specified
+    /// dimensions with a solid color stroke.
+    ///
+    /// Even when both [`radius_x`] and [`radius_y`] are zero, a
+    /// [`RoundedRect2D`] is different from a [`Rect2D`]. When stroked, the
+    /// corners of the rounded rectangle are roundly joined, not mitered
+    /// (square).
+    ///
+    /// [`radius_x`]: RoundedRect2D.radius_x
+    /// [`radius_y`]: RoundedRect2D.radius_y
+    pub fn stroke_rounded_rect(
+        &mut self,
+        rect: RoundedRect2D<f32>,
+        brush: &mut SolidColorBrush,
+        stroke_width: f32,
+    ) {
+        brush.recreate_if_needed(self.render_target);
+        unsafe {
+            self.device_target.DrawRoundedRectangle(
+                &rect.into() as _,
+                brush.device_brush(),
+                stroke_width,
+                InParam::null(),
+            );
+        }
+    }
     /// Ends drawing operations on the render target causing the changes to
     /// become visible and the render target to become ready for the next
     /// [`begin_draw`](RenderTarget::begin_draw) call.

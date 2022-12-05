@@ -321,6 +321,168 @@ where
     }
 }
 
+/// 2D dimensional rounded rectangle, compatible with any numeric
+/// representation. Contains the dimensions and corner radii of a rounded
+/// rectangle.
+///
+/// Each corner of the rectangle specified by rect is replaced with a quarter
+/// ellipse, with a radius in each direction specified by radiusX and radiusY.
+///
+/// If [`radius_x`] is greater than or equal to half the width of the rectangle,
+/// and [`radius_y`] is greater than or equal to one-half the height, then the
+/// rounded rectangle is an ellipse with the same width and height of rect.
+///
+/// # Direct2D Note
+///
+/// Even when both [`radius_x`] and [`radius_y`] are zero, a [`RoundedRect2D`]
+/// is different from a [`Rect2D`]. When stroked, the corners of the rounded
+/// rectangle are roundly joined, not mitered (square).
+///
+/// # Conversions
+///
+/// If _feature_ `"d2d"` is enabled, then a [`RoundedRect2D<f32>`] can be
+/// directly converted into a Direct2D `D2D1_ROUNDED_RECT ` struct.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct RoundedRect2D<T>
+where
+    T: Num + Clone + Copy + Debug,
+{
+    /// The coordinates of the base rectangle.
+    pub rect: Rect2D<T>,
+    /// The x-radius for the quarter ellipse that is drawn to replace every
+    /// corner of the rectangle.
+    pub radius_x: T,
+    /// The y-radius for the quarter ellipse that is drawn to replace every
+    /// corner of the rectangle.
+    pub radius_y: T,
+}
+
+impl<T> Default for RoundedRect2D<T>
+where
+    T: Num + Clone + Copy + Debug,
+{
+    fn default() -> Self {
+        Self {
+            rect: Rect2D::zero(),
+            radius_x: T::zero(),
+            radius_y: T::zero(),
+        }
+    }
+}
+
+impl<T> RoundedRect2D<T>
+where
+    T: Num + Clone + Copy + Debug,
+{
+    /// Creates a new [`RoundedRect2D`] with zero area in whichever numeric
+    /// type is specified by `T`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::RoundedRect2D;
+    ///
+    /// let empty = RoundedRect2D::<f32>::zero();
+    ///
+    /// assert_eq!(empty.rect.left, 0.0);
+    /// assert_eq!(empty.rect.right, 0.0);
+    /// assert_eq!(empty.rect.top, 0.0);
+    /// assert_eq!(empty.rect.bottom, 0.0);
+    /// assert_eq!(empty.radius_x, 0.0);
+    /// assert_eq!(empty.radius)y, 0.0);
+    /// ```
+    pub fn zero() -> Self {
+        Self::default()
+    }
+}
+
+impl<T> RoundedRect2D<T>
+where
+    T: Num + Clone + Copy + Debug,
+{
+    /// Constructs a [`Rect2D`] with a given [`Size2D`], anchored with the
+    /// origin (top-left corner) rooted at `origin`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::{Rect2D, Size2D, Point2D};
+    ///
+    /// let rect = Rect2D::<f32>::from_size_and_origin(
+    ///     Size2D {
+    ///         width: 10.0,
+    ///         height: 10.0
+    ///     },
+    ///     Point2D {
+    ///         x: 2.5,
+    ///         y: 5.0,
+    ///     },
+    /// );
+    ///
+    /// assert_eq!(rect.left, 2.5);
+    /// assert_eq!(rect.right, 12.5);
+    /// assert_eq!(rect.top, 5.0);
+    /// assert_eq!(rect.bottom, 15.0);
+    /// ```
+    pub fn from_size_and_origin(size: Size2D<T>, origin: Point2D<T>, corner_radius: T) -> Self
+    where
+        T: Add<Output = T>,
+    {
+        Self {
+            rect: Rect2D::from_size_and_origin(size, origin),
+            radius_x: corner_radius,
+            radius_y: corner_radius,
+        }
+    }
+
+    /// Returns the width of the rect.
+    pub fn width(&self) -> T {
+        self.rect.width()
+    }
+
+    /// Returns the height of the rect.
+    pub fn height(&self) -> T {
+        self.rect.height()
+    }
+
+    /// A generic interface which casts a [`RoundedRect2D`] from numeric
+    /// representation into another. The cast will never fail but may cause
+    /// narrowing or precision loss. The underlying cast operates the same as
+    /// the `as` keyword.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::{RoundedRect2D, Size2D, Point2D};
+    ///
+    /// let float_rect = RoundedRect2D::<f32>::from_size_and_origin(
+    ///     Size2D {
+    ///         width: 10.0,
+    ///         height: 10.0
+    ///     },
+    ///     Point2D::zero(),
+    ///     8.5,
+    /// );
+    ///
+    /// // Convert our float rounded rect into an integer rounded rect.
+    /// let int_rect = float_rect.cast::<i32>();
+    ///
+    /// assert_eq!(int_rect.radius_x, 8_i32);
+    /// ```
+    pub fn cast<U>(self) -> RoundedRect2D<U>
+    where
+        T: AsPrimitive<U>,
+        U: Num + Clone + Copy + Debug + 'static,
+    {
+        RoundedRect2D::<U> {
+            rect: self.rect.cast(),
+            radius_x: self.radius_x.as_(),
+            radius_y: self.radius_y.as_(),
+        }
+    }
+}
+
 #[cfg(feature = "win32")]
 mod win32 {
     use super::*;
@@ -339,7 +501,10 @@ mod win32 {
 #[cfg(feature = "d2d")]
 mod d2d {
     use super::*;
-    use ::windows::Win32::Graphics::Direct2D::Common::{D2D_POINT_2F, D2D_RECT_F, D2D_SIZE_U};
+    use ::windows::Win32::Graphics::Direct2D::{
+        Common::{D2D_POINT_2F, D2D_RECT_F, D2D_SIZE_U},
+        D2D1_ROUNDED_RECT,
+    };
 
     impl From<Point2D<f32>> for D2D_POINT_2F {
         fn from(val: Point2D<f32>) -> Self {
@@ -364,6 +529,16 @@ mod d2d {
             // SAFETY: our `Rect2D` is modelled on the same memory layout as the
             // Direct2D `D2D_RECT_F` and we restrict this conversion
             // implementation to rectangles with `f32` representations.
+            unsafe { ::std::mem::transmute(val) }
+        }
+    }
+
+    impl From<RoundedRect2D<f32>> for D2D1_ROUNDED_RECT {
+        fn from(val: RoundedRect2D<f32>) -> Self {
+            // SAFETY: our `RoundedRect2D` is modelled on the same memory layout
+            // as the Direct2D `D2D1_ROUNDED_RECT` and we restrict this
+            // conversion implementation to rectangles with `f32`
+            // representations.
             unsafe { ::std::mem::transmute(val) }
         }
     }
