@@ -36,7 +36,7 @@ use ::windows::{
         },
     },
 };
-use windows::Win32::Graphics::Gdi::UpdateWindow;
+use windows::Win32::{Graphics::Gdi::UpdateWindow, UI::WindowsAndMessaging::WM_PAINT};
 
 pub(super) struct WindowInner {
     /// Force !Send & !Sync, as our window can only be used by the thread on
@@ -57,6 +57,8 @@ pub(super) struct WindowInner {
     /// either be actioned by dropping the top level window, or the close
     /// request can be cleared if it is to be ignored.
     close_request: AtomicBool,
+    /// Stores an outstanding paint request from the Win32 side.
+    redraw_request: AtomicBool,
     /// Keyboard and text input state.
     keyboard: RwLock<Keyboard>,
 }
@@ -77,6 +79,7 @@ impl WindowInner {
             hwnd: Default::default(),
             size,
             close_request: AtomicBool::new(false),
+            redraw_request: AtomicBool::new(true), // Request immediate draw
             keyboard: RwLock::new(Keyboard::new()),
         });
 
@@ -171,6 +174,14 @@ impl WindowInner {
         self.close_request.swap(false, Ordering::SeqCst)
     }
 
+    /// Returns whether the window has requested to redraw, and immediately
+    /// clears this request. Window is not actually redrawn until it is painted
+    /// by external higher level code, so the close request can be ignored if
+    /// needed.
+    pub(super) fn clear_redraw_request(&self) -> bool {
+        self.redraw_request.swap(false, Ordering::SeqCst)
+    }
+
     pub fn keyboard(&self) -> impl DerefMut<Target = Keyboard> + '_ {
         self.keyboard.write()
     }
@@ -199,6 +210,10 @@ impl WindowInner {
         }
 
         match umsg {
+            WM_PAINT => {
+                self.redraw_request.store(true, Ordering::SeqCst);
+                false
+            }
             WM_CLOSE => {
                 self.close_request.store(true, Ordering::SeqCst);
                 true

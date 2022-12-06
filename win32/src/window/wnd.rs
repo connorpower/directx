@@ -58,6 +58,14 @@ impl Window {
         self.inner.clear_close_request()
     }
 
+    /// Returns whether the window has requested to redraw, and immediately
+    /// clears this request. Window is not actually redrawn until it is painted
+    /// by external higher level code, so the close request can be ignored if
+    /// needed.
+    pub fn clear_redraw_request(&mut self) -> bool {
+        self.inner.clear_redraw_request()
+    }
+
     /// Reads the keyboard state. A read lock is held during this process, so
     /// the reference must be dropped for further keyboard input to be handled.
     pub fn keyboard(&self) -> impl DerefMut<Target = Keyboard> + '_ {
