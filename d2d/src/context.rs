@@ -2,7 +2,7 @@
 //! draw cycle.
 
 use ::std::rc::Rc;
-use ::win_geom::d2::{Point2D, Rect2D, RoundedRect2D, Size2D};
+use ::win_geom::d2::{Ellipse2D, Point2D, Rect2D, RoundedRect2D, Size2D};
 use ::windows::{core::InParam, Win32::Graphics::Direct2D::ID2D1HwndRenderTarget};
 
 use crate::{
@@ -165,6 +165,35 @@ impl<'t> Context<'t> {
             );
         }
     }
+
+    /// Paints the interior of the specified ellipse.
+    pub fn fill_ellipse(&mut self, ellipse: Ellipse2D<f32>, brush: &mut SolidColorBrush) {
+        brush.recreate_if_needed(self.render_target);
+        unsafe {
+            self.device_target
+                .FillEllipse(&ellipse.into() as _, brush.device_brush());
+        }
+    }
+
+    /// Draws the outline of an ellipse that has the specified dimensions with a
+    /// solid color stroke.
+    pub fn stroke_ellipse(
+        &mut self,
+        ellipse: Ellipse2D<f32>,
+        brush: &mut SolidColorBrush,
+        stroke_width: f32,
+    ) {
+        brush.recreate_if_needed(self.render_target);
+        unsafe {
+            self.device_target.DrawEllipse(
+                &ellipse.into() as _,
+                brush.device_brush(),
+                stroke_width,
+                InParam::null(),
+            );
+        }
+    }
+
     /// Ends drawing operations on the render target causing the changes to
     /// become visible and the render target to become ready for the next
     /// [`begin_draw`](RenderTarget::begin_draw) call.

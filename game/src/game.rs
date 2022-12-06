@@ -4,14 +4,16 @@ use ::d2d::{brushes::SolidColorBrush, win_ui_colors, Color, D2DFactory, RenderTa
 use ::std::rc::Rc;
 use ::tracing::info;
 use ::win32::{errors::Result, window::Window};
-use ::win_geom::d2::{Point2D, Rect2D, RoundedRect2D, Size2D};
+use ::win_geom::d2::{Ellipse2D, Point2D, Rect2D, RoundedRect2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };
 
 struct DeviceResources {
-    dark_slate_gray_brush: SolidColorBrush,
-    cornflower_blue_brush: SolidColorBrush,
+    rect_stroke_brush: SolidColorBrush,
+    rect_fill_brush: SolidColorBrush,
+    ellipse_fill_brush: SolidColorBrush,
+
     red_brush: SolidColorBrush,
     green_brush: SolidColorBrush,
     blue_brush: SolidColorBrush,
@@ -20,10 +22,11 @@ struct DeviceResources {
 impl DeviceResources {
     fn make(render_target: &mut RenderTarget) -> Self {
         Self {
-            dark_slate_gray_brush: render_target
+            rect_stroke_brush: render_target
                 .make_solid_color_brush(win_ui_colors::dark_slate_gray()),
-            cornflower_blue_brush: render_target
-                .make_solid_color_brush(win_ui_colors::cornflower_blue()),
+            rect_fill_brush: render_target.make_solid_color_brush(win_ui_colors::cornflower_blue()),
+            ellipse_fill_brush: render_target.make_solid_color_brush(win_ui_colors::crimson()),
+
             red_brush: render_target.make_solid_color_brush(Color::red()),
             green_brush: render_target.make_solid_color_brush(Color::green()),
             blue_brush: render_target.make_solid_color_brush(Color::blue()),
@@ -107,7 +110,6 @@ impl Game {
                 Point2D { x, y: f_dim.height },
                 stroke_width,
                 brush,
-                //&mut self.resources.light_slate_gray_brush,
             );
         }
         for (i, y) in (0..u_dim.height).step_by(8).map(|u| u as f32).enumerate() {
@@ -122,7 +124,6 @@ impl Game {
                 Point2D { x: f_dim.width, y },
                 stroke_width,
                 brush,
-                //&mut self.resources.light_slate_gray_brush,
             );
         }
 
@@ -138,7 +139,7 @@ impl Game {
                 radius_x: 8.0,
                 radius_y: 8.0,
             },
-            &mut self.resources.cornflower_blue_brush,
+            &mut self.resources.rect_fill_brush,
         );
         let stroke_width = 1.0;
         ctx.stroke_rect(
@@ -148,8 +149,21 @@ impl Game {
                 top: (u_dim.height / 2 - 104) as _,
                 bottom: (u_dim.height / 2 + 104) as _,
             },
-            &mut self.resources.dark_slate_gray_brush,
+            &mut self.resources.rect_stroke_brush,
             stroke_width,
+        );
+
+        // Draw an ellipse in the center
+        ctx.fill_ellipse(
+            Ellipse2D {
+                center: Point2D {
+                    x: (u_dim.width / 2) as _,
+                    y: (u_dim.height / 2) as _,
+                },
+                radius_x: 16.0,
+                radius_y: 16.0,
+            },
+            &mut self.resources.ellipse_fill_brush,
         );
 
         ctx.end_draw();

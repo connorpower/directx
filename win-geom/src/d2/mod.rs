@@ -62,6 +62,35 @@ where
     pub fn zero() -> Self {
         Self::default()
     }
+
+    /// A generic interface which casts a [`Point2D`] from numeric
+    /// representation into another. The cast will never fail but may cause
+    /// narrowing or precision loss. The underlying cast operates the same as
+    /// the `as` keyword.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::Point2D;
+    ///
+    /// let float_point = Point2D::<f32> { x: 3.3, y: 4.4 };
+    ///
+    /// // Convert our point into an integer point.
+    /// let int_point = float_point.cast::<i32>();
+    ///
+    /// assert_eq!(int_point.x, 3_i32);
+    /// assert_eq!(int_point.y, 4_i32);
+    /// ```
+    pub fn cast<U>(self) -> Point2D<U>
+    where
+        T: AsPrimitive<U>,
+        U: Num + Clone + Copy + Debug + 'static,
+    {
+        Point2D::<U> {
+            x: self.x.as_(),
+            y: self.y.as_(),
+        }
+    }
 }
 
 /// 2D size representation, compatible with any numeric representation.
@@ -483,6 +512,132 @@ where
     }
 }
 
+/// 2D dimensional ellipse, compatible with any numeric representation. Contains
+/// the center point, x-radius, and y-radius of an ellipse.
+///
+/// # Conversions
+///
+/// If _feature_ `"d2d"` is enabled, then a [`Ellipse2D<f32>`] can be
+/// directly converted into a Direct2D `D2D1_ELLIPSE` struct.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct Ellipse2D<T>
+where
+    T: Num + Clone + Copy + Debug,
+{
+    /// The center point of the ellipse.
+    pub center: Point2D<T>,
+    /// The X-radius of the ellipse.
+    pub radius_x: T,
+    /// The Y-radius of the ellipse.
+    pub radius_y: T,
+}
+
+impl<T> Default for Ellipse2D<T>
+where
+    T: Num + Clone + Copy + Debug,
+{
+    fn default() -> Self {
+        Self {
+            center: Point2D::zero(),
+            radius_x: T::zero(),
+            radius_y: T::zero(),
+        }
+    }
+}
+
+impl<T> Ellipse2D<T>
+where
+    T: Num + Clone + Copy + Debug,
+{
+    /// Creates a new [`Ellipse2D`] with zero area in whichever numeric
+    /// type is specified by `T`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::Ellipse2D;
+    ///
+    /// let empty = Ellipse2D::<f32>::zero();
+    ///
+    /// assert_eq!(empty.radius_x, 0.0);
+    /// assert_eq!(empty.radius_y, 0.0);
+    /// ```
+    pub fn zero() -> Self {
+        Self::default()
+    }
+}
+
+impl<T> Ellipse2D<T>
+where
+    T: Num + Clone + Copy + Debug,
+{
+    /// Constructs circular [`Ellipse2D`] centered at a given [`Point2D`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::{Ellipse2D, Point2D};
+    ///
+    /// let circle = Ellipse2D::<f32>::new_circle(
+    ///     Point2D {
+    ///         x: 10.0,
+    ///         y: 10.0
+    ///     },
+    ///     20,
+    /// );
+    ///
+    /// assert_eq!(circle.center.x, 10.0);
+    /// assert_eq!(circle.center.y, 10.0);
+    /// assert_eq!(circle.radius_x, 20.0);
+    /// assert_eq!(circle.radius_y, 20.0);
+    /// ```
+    pub fn new_circle(center: Point2D<T>, radius: T) -> Self {
+        Self {
+            center,
+            radius_x: radius,
+            radius_y: radius,
+        }
+    }
+
+    /// A generic interface which casts an [`Ellipse2D`] from numeric
+    /// representation into another. The cast will never fail but may cause
+    /// narrowing or precision loss. The underlying cast operates the same as
+    /// the `as` keyword.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ::win_geom::d2::{Ellipse2D, Point2D};
+    ///
+    /// let circle = Ellipse2D::<f32>::new_circle(
+    ///     Point2D {
+    ///         x: 3.3,
+    ///         y: 4.4
+    ///     },
+    ///     8.8,
+    /// );
+    ///
+    /// // Convert our circle into an integer approximation.
+    /// let int_circle = circle.cast::<i32>();
+    ///
+    /// assert_eq!(int_circle.center.x, 3_i32);
+    /// assert_eq!(int_circle.center.y, 4_i32);
+    /// assert_eq!(int_circle.radius_x, 8_i32);
+    /// ```
+    pub fn cast<U>(self) -> Ellipse2D<U>
+    where
+        T: AsPrimitive<U>,
+        U: Num + Clone + Copy + Debug + 'static,
+    {
+        Ellipse2D::<U> {
+            center: self.center.cast(),
+            radius_x: self.radius_x.as_(),
+            radius_y: self.radius_y.as_(),
+        }
+    }
+}
+
 #[cfg(feature = "win32")]
 mod win32 {
     use super::*;
@@ -503,7 +658,7 @@ mod d2d {
     use super::*;
     use ::windows::Win32::Graphics::Direct2D::{
         Common::{D2D_POINT_2F, D2D_RECT_F, D2D_SIZE_U},
-        D2D1_ROUNDED_RECT,
+        D2D1_ELLIPSE, D2D1_ROUNDED_RECT,
     };
 
     impl From<Point2D<f32>> for D2D_POINT_2F {
@@ -539,6 +694,15 @@ mod d2d {
             // as the Direct2D `D2D1_ROUNDED_RECT` and we restrict this
             // conversion implementation to rectangles with `f32`
             // representations.
+            unsafe { ::std::mem::transmute(val) }
+        }
+    }
+
+    impl From<Ellipse2D<f32>> for D2D1_ELLIPSE {
+        fn from(val: Ellipse2D<f32>) -> Self {
+            // SAFETY: our `Ellipse2D` is modelled on the same memory layout as
+            // the Direct2D `D2D1_ELLIPSE` and we restrict this conversion
+            // implementation to ellipses with `f32` representations.
             unsafe { ::std::mem::transmute(val) }
         }
     }
