@@ -41,8 +41,10 @@ thread_local! {
 /// # Usage
 ///
 /// ```rust
+/// use ::win32::proc::ComLibraryHandle;
+///
 /// {
-///     let _handle = ComLibraryHandle::load();
+///     let _handle = ComLibraryHandle::acquire();
 ///
 ///     // Do stuff...
 ///

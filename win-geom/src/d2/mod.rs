@@ -371,6 +371,9 @@ where
 ///
 /// If _feature_ `"d2d"` is enabled, then a [`RoundedRect2D<f32>`] can be
 /// directly converted into a Direct2D `D2D1_ROUNDED_RECT ` struct.
+///
+/// [`radius_x`]: self.radius_x
+/// [`radius_y`]: self.radius_y
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct RoundedRect2D<T>
@@ -419,7 +422,7 @@ where
     /// assert_eq!(empty.rect.top, 0.0);
     /// assert_eq!(empty.rect.bottom, 0.0);
     /// assert_eq!(empty.radius_x, 0.0);
-    /// assert_eq!(empty.radius)y, 0.0);
+    /// assert_eq!(empty.radius_y, 0.0);
     /// ```
     pub fn zero() -> Self {
         Self::default()
@@ -584,7 +587,7 @@ where
     ///         x: 10.0,
     ///         y: 10.0
     ///     },
-    ///     20,
+    ///     20.0,
     /// );
     ///
     /// assert_eq!(circle.center.x, 10.0);

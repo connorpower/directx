@@ -16,10 +16,9 @@ use crate::{
 /// # Example
 ///
 /// ```no_run
-/// # use ::win_geom::d2::Size2D;
 /// # use ::windows::Win32::Foundation::HWND;
 /// # use ::d2d::D2DFactory;
-/// use ::win_geom::d2::Point2D;
+/// use ::win_geom::d2::{Size2D, Rect2D, Point2D};
 /// use ::d2d::Color;
 ///
 /// # let factory = D2DFactory::new().unwrap();
@@ -27,9 +26,15 @@ use crate::{
 /// #     HWND(0),
 /// #     Size2D { width: 100, height: 100 },
 /// # );
-/// let ctx = render_target.begin_draw();
+/// # let mut brush = render_target.make_solid_color_brush(Color::red());
+/// # let stroke_width = 1.0;
+/// let mut ctx = render_target.begin_draw();
 /// ctx.clear(Color::blue());
-/// ctx.put_pixel(Point2D { x: 10.0, y: 10.0 }, Color::red());
+/// let rect = Rect2D::from_size_and_origin(
+///     Size2D { width: 5.0, height: 5.0 },
+///     Point2D { x: 10.0, y: 10.0 },
+/// );
+/// ctx.stroke_rect(rect, &mut brush, 1.0);
 /// ctx.end_draw();
 /// ```
 pub struct Context<'t> {

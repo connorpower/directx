@@ -150,7 +150,7 @@ impl From<Color> for D2D1_COLOR_F {
 
 /// System color definitions from the Microsoft UI core library.
 ///
-/// https://learn.microsoft.com/en-us/uwp/api/windows.ui.colors?view=winrt-22621
+/// <https://learn.microsoft.com/en-us/uwp/api/windows.ui.colors?view=winrt-22621>
 pub mod win_ui_colors {
     use super::*;
 
