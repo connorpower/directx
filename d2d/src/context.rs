@@ -2,7 +2,7 @@
 //! draw cycle.
 
 use ::std::rc::Rc;
-use ::win_geom::d2::{Ellipse2D, Point2D, Rect2D, RoundedRect2D, Size2D};
+use ::win_geom::d2::{Ellipse2D, Point2D, Rect2D, RoundedRect2D};
 use ::windows::{core::InParam, Win32::Graphics::Direct2D::ID2D1HwndRenderTarget};
 
 use crate::{
@@ -61,19 +61,6 @@ impl<'t> Context<'t> {
     pub fn clear(&self, color: Color) {
         unsafe {
             self.device_target.Clear(Some(&color.into() as _));
-        }
-    }
-
-    /// TEMP/HACK
-    /// Put a single pixel to the screen using `brush` at `coord`.
-    /// TODO: allow any type of brush, not just SolidColor
-    pub fn put_pixel(&mut self, origin: Point2D<f32>, brush: &mut SolidColorBrush) {
-        brush.recreate_if_needed(self.render_target);
-
-        let rect = Rect2D::from_size_and_origin(Size2D::pixel(), origin);
-        unsafe {
-            self.device_target
-                .FillRectangle(&rect.into() as _, brush.device_brush());
         }
     }
 
