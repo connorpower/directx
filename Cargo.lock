@@ -55,6 +55,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "d2d-examples"
+version = "0.1.0"
+dependencies = [
+ "d2d",
+ "maplit",
+ "parking_lot",
+ "paste",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "win-geom",
+ "win32",
+ "windows",
+ "winres",
+]
+
+[[package]]
 name = "darling"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
