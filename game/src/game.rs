@@ -1,6 +1,6 @@
 use crate::resources::FERRIS_ICON;
 
-use ::d2d::{brushes::SolidColorBrush, win_ui_colors, Color, D2DFactory, RenderTarget};
+use ::d2d::{brushes::SolidColorBrush, Color, D2DFactory, RenderTarget};
 use ::std::rc::Rc;
 use ::tracing::info;
 use ::win32::{errors::Result, window::Window};
@@ -22,10 +22,9 @@ struct DeviceResources {
 impl DeviceResources {
     fn make(render_target: &mut RenderTarget) -> Self {
         Self {
-            rect_stroke_brush: render_target
-                .make_solid_color_brush(win_ui_colors::dark_slate_gray()),
-            rect_fill_brush: render_target.make_solid_color_brush(win_ui_colors::cornflower_blue()),
-            ellipse_fill_brush: render_target.make_solid_color_brush(win_ui_colors::crimson()),
+            rect_stroke_brush: render_target.make_solid_color_brush(Color::dark_slate_gray()),
+            rect_fill_brush: render_target.make_solid_color_brush(Color::cornflower_blue()),
+            ellipse_fill_brush: render_target.make_solid_color_brush(Color::crimson()),
 
             red_brush: render_target.make_solid_color_brush(Color::red()),
             green_brush: render_target.make_solid_color_brush(Color::green()),

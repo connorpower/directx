@@ -8,6 +8,13 @@ use ::windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
 /// [`D2D1_COLOR_F`] or [`D2D_COLOR_F`] types.
 ///
 /// [`D2D_COLOR_F`]: ::windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F
+///
+/// # Microsoft UI Colors
+///
+/// [`Color`] includes static definitions for all system colors in the Microsoft
+/// UI core library.
+///
+/// <https://learn.microsoft.com/en-us/uwp/api/windows.ui.colors?view=winrt-22621>
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Color {
@@ -36,55 +43,11 @@ pub struct Color {
     pub alpha: f32,
 }
 
-impl Color {
-    /// Predefined color for pure red.
-    pub const fn red() -> Self {
-        Self {
-            red: 1.0,
-            green: 0.0,
-            blue: 0.0,
-            alpha: 1.0,
-        }
-    }
-
-    /// Predefined color for pure green.
-    pub const fn green() -> Self {
-        Self {
-            red: 0.0,
-            green: 1.0,
-            blue: 0.0,
-            alpha: 1.0,
-        }
-    }
-
-    /// Predefined color for pure blue.
-    pub const fn blue() -> Self {
-        Self {
-            red: 0.0,
-            green: 0.0,
-            blue: 1.0,
-            alpha: 1.0,
-        }
-    }
-
-    /// Predefined color for pure white.
-    pub const fn white() -> Self {
-        Self {
-            red: 1.0,
-            green: 1.0,
-            blue: 1.0,
-            alpha: 1.0,
-        }
-    }
-
-    /// Predefined color for pure black.
-    pub const fn black() -> Self {
-        Self {
-            red: 0.0,
-            green: 0.0,
-            blue: 0.0,
-            alpha: 1.0,
-        }
+impl From<Color> for D2D1_COLOR_F {
+    fn from(c: Color) -> Self {
+        // SAFETY: `D2D1_COLOR_F` and `Color` share the same memory
+        // representation.
+        unsafe { ::std::mem::transmute::<_, _>(c) }
     }
 }
 
@@ -138,21 +101,6 @@ impl Color {
             alpha: a,
         }
     }
-}
-
-impl From<Color> for D2D1_COLOR_F {
-    fn from(c: Color) -> Self {
-        // SAFETY: `D2D1_COLOR_F` and `Color` share the same memory
-        // representation.
-        unsafe { ::std::mem::transmute::<_, _>(c) }
-    }
-}
-
-/// System color definitions from the Microsoft UI core library.
-///
-/// <https://learn.microsoft.com/en-us/uwp/api/windows.ui.colors?view=winrt-22621>
-pub mod win_ui_colors {
-    use super::*;
 
     /// AliceBlue predefined color from the Microsoft UI core library.
     pub fn alice_blue() -> Color {
@@ -735,7 +683,7 @@ mod tests {
         assert_eq!(color.blue, 0x32 as f32 / 255.0);
         assert_eq!(color.alpha, 0xFF as f32 / 255.0);
 
-        assert_eq!(color, win_ui_colors::yellow_green());
+        assert_eq!(color, Color::yellow_green());
     }
 
     #[test]
@@ -747,7 +695,7 @@ mod tests {
         assert_eq!(color.blue, 0x32 as f32 / 255.0);
         assert_eq!(color.alpha, 0xFF as f32 / 255.0);
 
-        assert_eq!(color, win_ui_colors::yellow_green());
+        assert_eq!(color, Color::yellow_green());
     }
 
     #[test]
@@ -759,6 +707,6 @@ mod tests {
         assert_eq!(color.blue, 0x32 as f32 / 255.0);
         assert_eq!(color.alpha, 0xFF as f32 / 255.0);
 
-        assert_eq!(color, win_ui_colors::yellow_green());
+        assert_eq!(color, Color::yellow_green());
     }
 }
