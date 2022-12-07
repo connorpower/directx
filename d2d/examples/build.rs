@@ -5,6 +5,7 @@ fn main() {
 
     // Enable High-DPI support by bundling the `hdpi.manifest`
     ::winres::WindowsResource::new()
+        .set_icon_with_id("icon.ico", "1")
         .set_manifest_file("hdpi.manifest")
         .compile()
         .unwrap();

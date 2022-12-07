@@ -4,6 +4,7 @@ use ::d2d::{brushes::SolidColorBrush, Color, D2DFactory, RenderTarget};
 use ::std::rc::Rc;
 use ::win32::{
     proc::ComLibraryHandle,
+    types::ResourceId,
     {errors::Result, window::Window},
 };
 use ::win_geom::d2::{Ellipse2D, Point2D, Rect2D, RoundedRect2D, Size2D};
@@ -69,8 +70,8 @@ impl ExampleApp {
             height: 640,
         };
 
-        let main_window =
-            Window::new(size, "Main Window", None).expect("Failed to create main window");
+        let main_window = Window::new(size, "Main Window", Some(ResourceId(1)))
+            .expect("Failed to create main window");
 
         let factory = D2DFactory::new().expect("Failed to create Direct2D factory");
         let mut render_target = factory.make_render_target(main_window.hwnd(), size);
