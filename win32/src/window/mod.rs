@@ -126,3 +126,23 @@ use class::*;
 pub use dpi::*;
 use inner::*;
 pub use wnd::*;
+
+/// The system theme, either light or dark.
+///
+/// Windows supports Light and Dark themes as a personalization option in
+/// Windows settings. Windows uses Light mode by default, but users can choose
+/// Dark mode, which changes much of the UI to a dark color.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Theme {
+    /// A dark background with a contrasting light foreground.
+    ///
+    /// In Dark mode, you will generally see white or light text on black or
+    /// dark backgrounds.
+    DarkMode,
+
+    /// A light background with a contrasting dark foreground.
+    ///
+    /// In Light Mode, you will generally see black or dark text on white or
+    /// light backgrounds.
+    LightMode,
+}

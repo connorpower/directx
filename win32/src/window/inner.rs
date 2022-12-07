@@ -3,7 +3,7 @@ use crate::{
     input::keyboard::{Adapter as KbdAdapter, Keyboard},
     invoke::chk,
     types::*,
-    window::{WindowClass, DPI},
+    window::{Theme, WindowClass, DPI},
 };
 
 use ::parking_lot::RwLock;
@@ -24,6 +24,10 @@ use ::windows::{
     core::PCWSTR,
     Win32::{
         Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+        Graphics::{
+            Dwm::{DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE},
+            Gdi::UpdateWindow,
+        },
         System::LibraryLoader::GetModuleHandleW,
         UI::{
             HiDpi::AdjustWindowRectExForDpi,
@@ -31,12 +35,11 @@ use ::windows::{
                 CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW,
                 SetWindowLongPtrW, SetWindowPos, ShowWindow, CREATESTRUCTW, CW_USEDEFAULT,
                 GWLP_USERDATA, GWLP_WNDPROC, SWP_NOMOVE, SW_SHOWNORMAL, WINDOW_EX_STYLE, WM_CLOSE,
-                WM_NCCREATE, WM_NCDESTROY, WS_OVERLAPPEDWINDOW,
+                WM_NCCREATE, WM_NCDESTROY, WM_PAINT, WS_OVERLAPPEDWINDOW,
             },
         },
     },
 };
-use windows::Win32::{Graphics::Gdi::UpdateWindow, UI::WindowsAndMessaging::WM_PAINT};
 
 pub(super) struct WindowInner {
     /// Force !Send & !Sync, as our window can only be used by the thread on
@@ -48,11 +51,14 @@ pub(super) struct WindowInner {
     window_class: Arc<WindowClass>,
     /// A handle to our corresponding Win32 window. If zero, the window has been
     /// destroyed on the Win32 size.
-    hwnd: Cell<isize>,
+    hwnd: Cell<HWND>,
     /// Fixed size for our window's client area.
     size: Size2D<i32>,
     /// The Window's title, as it appears in the Windows title bar.
     title: String,
+    /// The system theme in use by the window - "light" or "dark". This does not
+    /// auto-update to track the true system value yet.
+    theme: Cell<Theme>,
     /// Stores an outstanding close request from the Win32 side. This must
     /// either be actioned by dropping the top level window, or the close
     /// request can be cleared if it is to be ignored.
@@ -69,6 +75,7 @@ impl WindowInner {
         size: Size2D<i32>,
         title: &str,
         icon_id: Option<ResourceId>,
+        theme: Theme,
     ) -> Result<Rc<Self>> {
         debug!(wnd_title = %title, "Creating window inner");
 
@@ -78,6 +85,7 @@ impl WindowInner {
             window_class: WindowClass::get_or_create("MainWindow", icon_id, Self::wnd_proc_setup)?,
             hwnd: Default::default(),
             size,
+            theme: Cell::new(theme),
             close_request: AtomicBool::new(false),
             redraw_request: AtomicBool::new(true), // Request immediate draw
             keyboard: RwLock::new(Keyboard::new()),
@@ -85,7 +93,6 @@ impl WindowInner {
 
         let hwnd = {
             let module = chk!(res; GetModuleHandleW(None))?;
-
             let title = U16CString::from_str(title).expect("Window name contained null byte");
 
             chk!(ptr; CreateWindowExW(
@@ -106,6 +113,7 @@ impl WindowInner {
                 )
             )?
         };
+        this.hwnd.set(hwnd);
 
         // `SetWindowPos` function takes its size in pixels, so we
         // obtain the window's DPI and use it to scale the window size_
@@ -135,13 +143,11 @@ impl WindowInner {
             SWP_NOMOVE
         ))?;
 
+        this.set_theme(theme);
         unsafe {
             ShowWindow(hwnd, SW_SHOWNORMAL);
             UpdateWindow(hwnd);
         }
-
-        // Note: We don't store `hwnd` in `this` here. Instead we store the
-        // handle when if first appears in the window proc function.
 
         Ok(this)
     }
@@ -162,9 +168,34 @@ impl WindowInner {
     /// If `None`, then the window has already been destroyed on the Win32 side.
     pub(super) fn hwnd(&self) -> HWND {
         let val = self.hwnd.get();
-        assert_ne!(val, 0, "Window handle was NULL");
+        assert_ne!(val.0, 0, "Window handle was NULL");
+        val
+    }
 
-        HWND(val)
+    /// Sets the window's system theme. This currently only controls the color
+    /// of the title bar.
+    pub(super) fn current_theme(&self) -> Theme {
+        self.theme.get()
+    }
+
+    /// Sets the window's title bar to match the given theme.
+    pub(super) fn set_theme(&self, theme: Theme) {
+        let val: i32 = match theme {
+            Theme::DarkMode => 0x01,
+            Theme::LightMode => 0x00,
+        };
+
+        self.theme.set(theme);
+
+        chk!(res;
+            DwmSetWindowAttribute(
+                self.hwnd(),
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                &val as *const i32 as _,
+                ::std::mem::size_of::<i32>() as u32
+            )
+        )
+        .unwrap();
     }
 
     /// Returns whether the window has requested to close, and immediately
@@ -228,7 +259,7 @@ impl WindowInner {
                 let _ = unsafe { Rc::from_raw(self_) };
 
                 // Clear our window handle now that we're destroyed.
-                self.hwnd.set(0);
+                self.hwnd.set(HWND(0));
 
                 // forward to default procedure too
                 false
@@ -254,12 +285,6 @@ impl WindowInner {
             // SAFETY: The `CREATESRUCTA` structure is guaranteed by the Win32
             // API to be valid if we've received an event of type `WM_NCCREATE`.
             let self_ = unsafe { (*create_struct).lpCreateParams } as *const Self;
-
-            // SAFETY: `self` is within an Rc which we don't release until the
-            // window is destroyed. We are still creating the window here and
-            // our message loop is single threaded so no other window activity
-            // could be happening.
-            unsafe { (*self_).hwnd.set(hwnd.0) };
 
             chk!(last_err; SetWindowLongPtrW(hwnd, GWLP_USERDATA, self_ as _)).unwrap();
             chk!(last_err; SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (Self::wnd_proc_thunk as usize) as isize))

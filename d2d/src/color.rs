@@ -102,6 +102,18 @@ impl Color {
         }
     }
 
+    /// A heuristic which indicates whether a color is considered "light".
+    /// Useful for UI which supports dynamic light and dark mode.
+    pub fn is_light(&self) -> bool {
+        (5.0 * self.green + 2.0 * self.red + self.blue) > (8.0 * 0.5)
+    }
+
+    /// A heuristic which indicates whether a color is considered "dark".
+    /// Useful for UI which supports dynamic light and dark mode.
+    pub fn is_dark(&self) -> bool {
+        !self.is_light()
+    }
+
     /// AliceBlue predefined color from the Microsoft UI core library.
     pub fn alice_blue() -> Color {
         Color::new_argb(0xFFF0F8FF)
@@ -708,5 +720,17 @@ mod tests {
         assert_eq!(color.alpha, 0xFF as f32 / 255.0);
 
         assert_eq!(color, Color::yellow_green());
+    }
+
+    #[test]
+    fn test_dark_mode() {
+        assert!(Color::dark_olive_green().is_dark());
+        assert!(!Color::dark_olive_green().is_light());
+    }
+
+    #[test]
+    fn test_light_mode() {
+        assert!(!Color::light_pink().is_dark());
+        assert!(Color::light_pink().is_light());
     }
 }

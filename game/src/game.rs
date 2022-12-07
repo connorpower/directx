@@ -3,7 +3,10 @@ use crate::resources::FERRIS_ICON;
 use ::d2d::{brushes::SolidColorBrush, Color, D2DFactory, RenderTarget};
 use ::std::rc::Rc;
 use ::tracing::info;
-use ::win32::{errors::Result, window::Window};
+use ::win32::{
+    errors::Result,
+    window::{Theme, Window},
+};
 use ::win_geom::d2::{Ellipse2D, Point2D, Rect2D, RoundedRect2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
@@ -59,9 +62,15 @@ impl Game {
             width: 720,
             height: 640,
         };
+        let system_theme = Theme::LightMode;
 
-        let main_window = Window::new(size, "Main Window", Some(FERRIS_ICON.id().into()))
-            .expect("Failed to create main window");
+        let main_window = Window::new(
+            size,
+            "Main Window",
+            Some(FERRIS_ICON.id().into()),
+            system_theme,
+        )
+        .expect("Failed to create main window");
 
         ::tracing::debug!("Window DPI: {dpi}", dpi = main_window.dpi());
 

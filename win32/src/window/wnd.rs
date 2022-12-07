@@ -5,7 +5,7 @@ use crate::{
     input::keyboard::Keyboard,
     invoke::chk,
     types::*,
-    window::{WindowInner, DPI},
+    window::{Theme, WindowInner, DPI},
 };
 
 use ::std::{ops::DerefMut, rc::Rc};
@@ -29,9 +29,14 @@ pub struct Window {
 
 impl Window {
     /// Construct and display a new window.
-    pub fn new(size: Size2D<i32>, title: &str, icon_id: Option<ResourceId>) -> Result<Self> {
+    pub fn new(
+        size: Size2D<i32>,
+        title: &str,
+        icon_id: Option<ResourceId>,
+        theme: Theme,
+    ) -> Result<Self> {
         debug!(wnd_title = %title, "Creating window");
-        WindowInner::new(size, title, icon_id).map(|inner| Self { inner })
+        WindowInner::new(size, title, icon_id, theme).map(|inner| Self { inner })
     }
 
     /// The size of the client area of our Win32 window. The window chrome
@@ -44,6 +49,17 @@ impl Window {
     /// interacting with other APIs.
     pub fn hwnd(&self) -> HWND {
         self.inner.hwnd()
+    }
+
+    /// Sets the window's system theme. This currently only controls the color
+    /// of the title bar.
+    pub fn current_theme(&self) -> Theme {
+        self.inner.current_theme()
+    }
+
+    /// Sets the window's title bar to match the given theme.
+    pub fn set_theme(&self, theme: Theme) {
+        self.inner.set_theme(theme)
     }
 
     /// Returns the dots per inch (dpi) value for the window.

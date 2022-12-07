@@ -5,7 +5,10 @@ use ::std::rc::Rc;
 use ::win32::{
     proc::ComLibraryHandle,
     types::ResourceId,
-    {errors::Result, window::Window},
+    {
+        errors::Result,
+        window::{Theme, Window},
+    },
 };
 use ::win_geom::d2::{Ellipse2D, Point2D, Rect2D, RoundedRect2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
@@ -16,14 +19,21 @@ pub fn main() {
     // Ensure COM library is loaded
     let _com_handle = ComLibraryHandle::acquire();
 
+    // Use dimensions which are divisible by 8 to work well on 100%, 125%
+    // and 150% DPI.
+    let size = Size2D {
+        width: 720,
+        height: 640,
+    };
+
     // Start our example program and pump the message loop
-    let mut example = ExampleApp::new();
+    let mut example = ExampleApp::new(size);
     example.run_message_loop().unwrap();
 }
 
 /// A simple structure which holds our Direct2D device dependent resources.
 /// These are cached and re-used across drawing calls.
-struct DeviceResources {
+struct Resources {
     rect_stroke_brush: SolidColorBrush,
     rect_fill_brush: SolidColorBrush,
     ellipse_fill_brush: SolidColorBrush,
@@ -31,18 +41,35 @@ struct DeviceResources {
     red_brush: SolidColorBrush,
     green_brush: SolidColorBrush,
     blue_brush: SolidColorBrush,
+
+    background_color: Color,
 }
 
-impl DeviceResources {
-    fn make(render_target: &mut RenderTarget) -> Self {
-        Self {
-            rect_stroke_brush: render_target.make_solid_color_brush(Color::dark_slate_gray()),
-            rect_fill_brush: render_target.make_solid_color_brush(Color::cornflower_blue()),
-            ellipse_fill_brush: render_target.make_solid_color_brush(Color::black()),
+impl Resources {
+    fn make(render_target: &mut RenderTarget, theme: Theme) -> Self {
+        let red_brush = render_target.make_solid_color_brush(Color::red());
+        let green_brush = render_target.make_solid_color_brush(Color::green());
+        let blue_brush = render_target.make_solid_color_brush(Color::blue());
 
-            red_brush: render_target.make_solid_color_brush(Color::red()),
-            green_brush: render_target.make_solid_color_brush(Color::green()),
-            blue_brush: render_target.make_solid_color_brush(Color::blue()),
+        match theme {
+            Theme::DarkMode => Self {
+                rect_stroke_brush: render_target.make_solid_color_brush(Color::ghost_white()),
+                rect_fill_brush: render_target.make_solid_color_brush(Color::light_slate_gray()),
+                ellipse_fill_brush: render_target.make_solid_color_brush(Color::black()),
+                red_brush,
+                green_brush,
+                blue_brush,
+                background_color: Color::black(),
+            },
+            Theme::LightMode => Self {
+                rect_stroke_brush: render_target.make_solid_color_brush(Color::dark_slate_gray()),
+                rect_fill_brush: render_target.make_solid_color_brush(Color::slate_gray()),
+                ellipse_fill_brush: render_target.make_solid_color_brush(Color::white()),
+                red_brush,
+                green_brush,
+                blue_brush,
+                background_color: Color::white(),
+            },
         }
     }
 }
@@ -57,25 +84,20 @@ pub struct ExampleApp {
     /// Our Direct2D render target which pains the main window's client area.
     render_target: RenderTarget,
     /// Cached device-specific drawing resources re-used in each drawing call.
-    resources: DeviceResources,
+    resources: Resources,
 }
 
 impl ExampleApp {
     /// Build a new app, which includes the main window, and display the window.
-    pub fn new() -> Self {
-        // Use dimensions which are divisible by 8 to work well on 100%, 125%
-        // and 150% DPI.
-        let size = Size2D {
-            width: 720,
-            height: 640,
-        };
+    pub fn new(size: Size2D<i32>) -> Self {
+        let theme = Theme::LightMode;
 
-        let main_window = Window::new(size, "Main Window", Some(ResourceId(1)))
+        let main_window = Window::new(size, "Direct2D Example", Some(ResourceId(1)), theme)
             .expect("Failed to create main window");
 
         let factory = D2DFactory::new().expect("Failed to create Direct2D factory");
         let mut render_target = factory.make_render_target(main_window.hwnd(), size);
-        let resources = DeviceResources::make(&mut render_target);
+        let resources = Resources::make(&mut render_target, theme);
 
         Self {
             main_window,
@@ -98,13 +120,13 @@ impl ExampleApp {
         // until the corresponding `end_draw` call.
         let mut ctx = self.render_target.begin_draw();
         // Erase the last contents by paining the client area white.
-        ctx.clear(Color::white());
+        ctx.clear(self.resources.background_color);
 
         // Cache our main window dimensions both as i32 and f32 values.
         let f_dim = self.main_window.size().cast::<f32>();
 
         // Alternate red, green, blue lines for the background grid.
-        fn get_line_brush(resources: &mut DeviceResources, i: usize) -> &mut SolidColorBrush {
+        fn get_line_brush(resources: &mut Resources, i: usize) -> &mut SolidColorBrush {
             match i % 3 {
                 0 => &mut resources.red_brush,
                 1 => &mut resources.green_brush,
