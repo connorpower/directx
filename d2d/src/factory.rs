@@ -14,7 +14,7 @@ use ::windows::Win32::{
     Foundation::HWND,
     Graphics::Direct2D::{
         D2D1CreateFactory, ID2D1Factory, ID2D1HwndRenderTarget, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-        D2D1_FACTORY_OPTIONS, D2D1_FACTORY_TYPE_SINGLE_THREADED,
+        D2D1_FACTORY_OPTIONS, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_10,
         D2D1_HWND_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_PROPERTIES,
         D2D1_RENDER_TARGET_TYPE_HARDWARE,
     },
@@ -83,6 +83,7 @@ impl D2DFactory {
             r#type: D2D1_RENDER_TARGET_TYPE_HARDWARE,
             dpiX: dpi.into(),
             dpiY: dpi.into(),
+            minLevel: D2D1_FEATURE_LEVEL_10, // Require DirectX 10
             ..Default::default()
         };
 
