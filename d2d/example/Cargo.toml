@@ -1,12 +1,9 @@
 [package]
-name = "d2d-examples"
+name = "d2d-example"
 version = "0.1.0"
 edition = "2021"
 authors = ["Connor Power <connor@connorpower.com>"]
 build = "build.rs"
-
-[[bin]]
-name = "drawing"
 
 [dependencies]
 win-geom = { path = "../../win-geom" }

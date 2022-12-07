@@ -55,7 +55,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "d2d-examples"
+name = "d2d-example"
 version = "0.1.0"
 dependencies = [
  "d2d",
