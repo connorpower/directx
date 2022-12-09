@@ -8,7 +8,7 @@ use ::windows::core::{PCSTR, PCWSTR};
 
 /// An reference for a compiled windows resource (icons, cursors, etc).
 #[derive(Clone, Copy, Debug, Default)]
-pub struct ResourceId(isize);
+pub struct ResourceId(pub isize);
 
 impl ResourceId {
     /// Strongly typed conversion into a `PCSTR` type. Useful for Win32 APIs

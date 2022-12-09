@@ -124,6 +124,7 @@ impl Keyboard {
         }
     }
 
+    /// Returns `true` if the given key is currently pressed, otherwise `false`.
     pub fn is_key_pressed(&self, key: KeyCode) -> bool {
         *self.bit_for_key(key).as_ref()
     }

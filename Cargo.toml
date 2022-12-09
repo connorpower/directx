@@ -1,5 +1,8 @@
 [workspace]
 members = [
+    "win-geom",
     "win32",
+    "d2d",
+    "d2d/example",
     "game",
 ]

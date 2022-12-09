@@ -123,7 +123,7 @@ impl WindowClass {
     }
 
     fn unregister(&self) -> Result<()> {
-        debug!(wnd_class = ?self.class_name(), "Unregister window class");
+        debug!(wnd_class = ?self.class_name().to_string_lossy(), "Unregister window class");
         let module = chk!(res; GetModuleHandleW(None))?;
         chk!(bool; UnregisterClassW(PCWSTR::from_raw(self.class_name().as_ptr()), module))?;
         Ok(())

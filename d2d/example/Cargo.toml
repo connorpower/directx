@@ -1,21 +1,14 @@
 [package]
-name = "game"
+name = "d2d-example"
 version = "0.1.0"
 edition = "2021"
 authors = ["Connor Power <connor@connorpower.com>"]
 build = "build.rs"
 
-[features]
-# Enables a stdio output (useful for debugging with traces from a terminal).
-# Acheives this by _not_ setting the windows subsystem to windows, which will
-# cause a cmd window to appear if the app is opened double-clicking and it was
-# built with this feature enabled.
-stdio= []
-
 [dependencies]
-win-geom = { path = "../win-geom" }
-win32 = { path = "../win32" }
-d2d = { path = "../d2d" }
+win-geom = { path = "../../win-geom" }
+win32 = { path = "../../win32" }
+d2d = { path = "../" }
 
 thiserror = "1.0.37"
 maplit = "1.0.2"
@@ -36,5 +29,3 @@ features = [
 
 [build-dependencies]
 winres = "0.1.12"
-
-[dev-dependencies]

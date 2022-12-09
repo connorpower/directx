@@ -10,8 +10,8 @@ abstract FFI, together with a `::game` binary which serves as a simple test-bed.
 
 ## Requirements
 
-- Windows OS
-- Direct3D 11 graphics card support
+- Windows 11+ or newer
+- DirectX 10 capable graphics card
 
 ## Usage
 

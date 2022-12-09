@@ -9,9 +9,10 @@ mod trace;
 
 use crate::game::Game;
 use ::tracing::{error, info};
+use ::win32::proc::{self, ComLibraryHandle};
 
-#[::tokio::main]
-pub async fn main() {
+pub fn main() {
+    proc::enable_heap_protection();
     trace::configure();
 
     info!(
@@ -20,8 +21,11 @@ pub async fn main() {
         "Starting"
     );
 
-    if let Err(e) = Game::new().run().await {
-        error!(error = %e);
+    {
+        let _com_handle = ComLibraryHandle::acquire();
+        if let Err(e) = Game::new().run() {
+            error!(error = %e);
+        }
     }
 
     info!(

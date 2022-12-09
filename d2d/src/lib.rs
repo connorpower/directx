@@ -1,4 +1,5 @@
-//! Utilities for interacting with Win32 API.
+//! [`::d2d`](crate) is a Direct2D-based graphics package which provides only
+//! the most minimal of conveniences over the underlying DirectX implementation.
 
 #![deny(rust_2018_idioms)]
 #![warn(missing_docs)]
@@ -14,10 +15,14 @@
     )
 )]
 
-pub mod debug;
-pub mod errors;
-pub mod input;
-pub mod invoke;
-pub mod proc;
-pub mod types;
-pub mod window;
+mod color;
+mod context;
+mod factory;
+mod resources;
+mod target;
+
+pub use color::*;
+pub use context::*;
+pub use factory::*;
+pub use resources::*;
+pub use target::*;

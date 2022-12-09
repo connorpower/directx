@@ -43,6 +43,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "d2d"
+version = "0.1.0"
+dependencies = [
+ "paste",
+ "pretty_assertions",
+ "tracing",
+ "win-geom",
+ "win32",
+ "windows",
+]
+
+[[package]]
+name = "d2d-example"
+version = "0.1.0"
+dependencies = [
+ "d2d",
+ "maplit",
+ "parking_lot",
+ "paste",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "win-geom",
+ "win32",
+ "windows",
+ "winres",
+]
+
+[[package]]
 name = "darling"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -122,6 +152,7 @@ checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 name = "game"
 version = "0.1.0"
 dependencies = [
+ "d2d",
  "maplit",
  "parking_lot",
  "paste",
@@ -129,6 +160,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "win-geom",
  "win32",
  "windows",
  "winres",
@@ -586,6 +618,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
 
 [[package]]
+name = "win-geom"
+version = "0.1.0"
+dependencies = [
+ "num-traits",
+ "pretty_assertions",
+ "windows",
+]
+
+[[package]]
 name = "win32"
 version = "0.1.0"
 dependencies = [
@@ -602,6 +643,7 @@ dependencies = [
  "tokio",
  "tracing",
  "widestring",
+ "win-geom",
  "windows",
 ]
 
