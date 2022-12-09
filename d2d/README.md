@@ -40,6 +40,8 @@ as a build script phase. For an example, see [`build.rs`] in this repository.
 
 [Example](example/src/main.rs) shown in light and dark mode.
 
+![Example Window](docs/example.png)
+
 ```rust
 /// Draw the main window contents. This is a simple example of Direct2D
 /// drawing and will paint the following:
