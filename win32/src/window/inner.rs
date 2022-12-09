@@ -241,6 +241,7 @@ impl WindowInner {
         }
 
         match umsg {
+            // TODO: WM_DPICHANGED (+send to d2d)
             WM_PAINT => {
                 self.redraw_request.store(true, Ordering::SeqCst);
                 false

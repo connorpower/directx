@@ -10,7 +10,7 @@ use ::win32::{
         window::{Theme, Window},
     },
 };
-use ::win_geom::d2::{Ellipse2D, Point2D, Rect2D, RoundedRect2D, Size2D};
+use ::win_geom::d2::{Point2D, Rect2D, Size2D};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG,
 };
@@ -36,38 +36,23 @@ pub fn main() {
 struct Resources {
     rect_stroke_brush: SolidColorBrush,
     rect_fill_brush: SolidColorBrush,
-    ellipse_fill_brush: SolidColorBrush,
-
-    red_brush: SolidColorBrush,
-    green_brush: SolidColorBrush,
-    blue_brush: SolidColorBrush,
-
+    grid_brush: SolidColorBrush,
     background_color: Color,
 }
 
 impl Resources {
     fn make(render_target: &mut RenderTarget, theme: Theme) -> Self {
-        let red_brush = render_target.make_solid_color_brush(Color::red());
-        let green_brush = render_target.make_solid_color_brush(Color::green());
-        let blue_brush = render_target.make_solid_color_brush(Color::blue());
-
         match theme {
             Theme::DarkMode => Self {
-                rect_stroke_brush: render_target.make_solid_color_brush(Color::ghost_white()),
-                rect_fill_brush: render_target.make_solid_color_brush(Color::light_slate_gray()),
-                ellipse_fill_brush: render_target.make_solid_color_brush(Color::black()),
-                red_brush,
-                green_brush,
-                blue_brush,
+                rect_stroke_brush: render_target.make_solid_color_brush(Color::cornflower_blue()),
+                rect_fill_brush: render_target.make_solid_color_brush(Color::dark_slate_gray()),
+                grid_brush: render_target.make_solid_color_brush(Color::dark_slate_gray()),
                 background_color: Color::black(),
             },
             Theme::LightMode => Self {
-                rect_stroke_brush: render_target.make_solid_color_brush(Color::dark_slate_gray()),
-                rect_fill_brush: render_target.make_solid_color_brush(Color::slate_gray()),
-                ellipse_fill_brush: render_target.make_solid_color_brush(Color::white()),
-                red_brush,
-                green_brush,
-                blue_brush,
+                rect_stroke_brush: render_target.make_solid_color_brush(Color::cornflower_blue()),
+                rect_fill_brush: render_target.make_solid_color_brush(Color::light_slate_gray()),
+                grid_brush: render_target.make_solid_color_brush(Color::light_slate_gray()),
                 background_color: Color::white(),
             },
         }
@@ -90,7 +75,7 @@ pub struct ExampleApp {
 impl ExampleApp {
     /// Build a new app, which includes the main window, and display the window.
     pub fn new(size: Size2D<i32>) -> Self {
-        let theme = Theme::LightMode;
+        let theme = Theme::DarkMode;
 
         let main_window = Window::new(size, "Direct2D Example", Some(ResourceId(1)), theme)
             .expect("Failed to create main window");
@@ -123,102 +108,61 @@ impl ExampleApp {
         ctx.clear(self.resources.background_color);
 
         // Cache our main window dimensions both as i32 and f32 values.
-        let f_dim = self.main_window.size().cast::<f32>();
+        let dimensions = self.main_window.size().cast::<f32>();
 
-        // Alternate red, green, blue lines for the background grid.
-        fn get_line_brush(resources: &mut Resources, i: usize) -> &mut SolidColorBrush {
-            match i % 3 {
-                0 => &mut resources.red_brush,
-                1 => &mut resources.green_brush,
-                2 => &mut resources.blue_brush,
-                _ => unreachable!(),
-            }
-        }
-
-        // Draw light grey grid with 10px squares
+        // Draw grid with 8px squares
         let stroke_width = 0.5;
-        for (i, x) in (0..self.main_window.size().width)
+        for x in (0..self.main_window.size().width)
             .step_by(8)
             .map(|u| u as f32)
-            .enumerate()
         {
-            let brush = get_line_brush(&mut self.resources, i);
             ctx.draw_line(
                 Point2D { x, y: 0.0 },
-                Point2D { x, y: f_dim.height },
+                Point2D {
+                    x,
+                    y: dimensions.height,
+                },
                 stroke_width,
-                brush,
+                &mut self.resources.grid_brush,
             );
         }
-        for (i, y) in (0..self.main_window.size().height)
+        for y in (0..self.main_window.size().height)
             .step_by(8)
             .map(|u| u as f32)
-            .enumerate()
         {
-            let brush = get_line_brush(&mut self.resources, i);
             ctx.draw_line(
                 Point2D { x: 0.0, y },
-                Point2D { x: f_dim.width, y },
+                Point2D {
+                    x: dimensions.width,
+                    y,
+                },
                 stroke_width,
-                brush,
+                &mut self.resources.grid_brush,
             );
         }
 
-        // Draw two rectangles, one inner filled gray and one outer stroked blue
-        ctx.fill_rounded_rect(
-            RoundedRect2D {
-                rect: Rect2D {
-                    left: (f_dim.width / 2.0 - 56.0),
-                    right: (f_dim.width / 2.0 + 56.0),
-                    top: (f_dim.height / 2.0 - 56.0),
-                    bottom: (f_dim.height / 2.0 + 56.0),
-                },
-                radius_x: 8.0,
-                radius_y: 8.0,
+        // Draw two rectangles, one inner filled rectangle and one stroked
+        // larger rectangle.
+        ctx.fill_rect(
+            Rect2D {
+                left: (dimensions.width / 2.0 - 56.0),
+                right: (dimensions.width / 2.0 + 56.0),
+                top: (dimensions.height / 2.0 - 56.0),
+                bottom: (dimensions.height / 2.0 + 56.0),
             },
             &mut self.resources.rect_fill_brush,
         );
-        let stroke_width = 1.5;
+        let stroke_width = 1.0;
         ctx.stroke_rect(
             Rect2D {
-                left: (f_dim.width / 2.0 - 104.0),
-                right: (f_dim.width / 2.0 + 104.0),
-                top: (f_dim.height / 2.0 - 104.0),
-                bottom: (f_dim.height / 2.0 + 104.0),
+                left: (dimensions.width / 2.0 - 104.0),
+                right: (dimensions.width / 2.0 + 104.0),
+                top: (dimensions.height / 2.0 - 104.0),
+                bottom: (dimensions.height / 2.0 + 104.0),
             },
             &mut self.resources.rect_stroke_brush,
             stroke_width,
         );
-
-        // Draw four ellipses near the corners of the rounded rect
-        let radius = 4.0;
-        for center in [
-            Point2D {
-                x: f_dim.width / 2.0 - 56.0 + 2.0 * radius,
-                y: f_dim.height / 2.0 - 56.0 + 2.0 * radius,
-            },
-            Point2D {
-                x: f_dim.width / 2.0 + 56.0 - 2.0 * radius,
-                y: f_dim.height / 2.0 - 56.0 + 2.0 * radius,
-            },
-            Point2D {
-                x: f_dim.width / 2.0 - 56.0 + 2.0 * radius,
-                y: f_dim.height / 2.0 + 56.0 - 2.0 * radius,
-            },
-            Point2D {
-                x: f_dim.width / 2.0 + 56.0 - 2.0 * radius,
-                y: f_dim.height / 2.0 + 56.0 - 2.0 * radius,
-            },
-        ] {
-            ctx.fill_ellipse(
-                Ellipse2D {
-                    center,
-                    radius_x: radius,
-                    radius_y: radius,
-                },
-                &mut self.resources.ellipse_fill_brush,
-            );
-        }
 
         // Drawing must end with `end_draw`. This causes the batched changes to
         // be pushed to the hardware and drawn to the screen. It also releases
